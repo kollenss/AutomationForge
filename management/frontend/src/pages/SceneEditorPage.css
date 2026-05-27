@@ -1,0 +1,36 @@
+.se-layout { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.se-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 52px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.se-back { font-size: 13px; background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.se-back:hover { color: var(--text); background: none; border: none; }
+.se-sep { color: var(--border); }
+.se-scene-name { font-weight: 600; font-size: 14px; flex: 1; }
+.se-header-right { display: flex; align-items: center; gap: 10px; }
+.se-unsaved { font-size: 11px; color: var(--muted); }
+
+.se-body { display: flex; flex: 1; overflow: hidden; }
+
+.se-canvas-wrap { flex: 1; position: relative; background: var(--bg); }
+
+.se-canvas-hint {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px; opacity: .5;
+}
+
+.se-right-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── React Flow overrides ── */
+.react-flow__background { background: var(--bg) !important; }
+.react-flow__controls button {
+  background: var(--surface) !important; border-color: var(--border) !important;
+  color: var(--text) !important; width: 24px; height: 24px;
+}
+.react-flow__controls button:hover { background: var(--surface2) !important; border-color: var(--accent) !important; }
+.react-flow__edge-path { stroke: var(--accent) !important; }
+

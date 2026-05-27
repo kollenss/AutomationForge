@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Le Cœur Bleu · Management</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;padding:16px;max-width:780px;margin:0 auto}
+h1{color:#C9A84C;font-size:1.1rem;letter-spacing:.15em;padding:14px 0 12px;border-bottom:1px solid #2a2a2a;margin-bottom:20px}
+h1 span{color:#555;font-size:.8rem;margin-left:10px;letter-spacing:normal}
+h2{color:#C9A84C;font-size:.8rem;letter-spacing:.12em;margin-bottom:12px}
+.card{background:#111;border:1px solid #222;border-radius:4px;padding:16px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.row:last-child{margin-bottom:0}
+label{color:#777;font-size:.75rem;min-width:90px}
+.badge{font-size:.7rem;font-weight:bold;padding:2px 9px;border-radius:2px;letter-spacing:.08em}
+.s-boot,.s-unknown{background:#1a1a1a;color:#555}
+.s-usb_wait{background:#1a1a2a;color:#5577aa}
+.s-login{background:#2a1a0a;color:#cc7733}
+.s-menu,.s-alarm,.s-confirm{background:#2a1a1a;color:#cc3333}
+.s-success{background:#0a2a0a;color:#33cc66}
+.s-lockout{background:#2a0a0a;color:#ff3333}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot-on{background:#33cc66}
+.dot-off{background:#333}
+button{background:#1e1e1e;border:1px solid #333;color:#ddd;font-family:inherit;font-size:.78rem;padding:7px 14px;border-radius:3px;cursor:pointer;transition:background .15s}
+button:hover{background:#2a2a2a;border-color:#C9A84C;color:#C9A84C}
+button.danger{border-color:#552222}
+button.danger:hover{background:#2a1010;border-color:#cc3333;color:#cc3333}
+button.primary{border-color:#335533}
+button.primary:hover{background:#0a2a0a;border-color:#33cc66;color:#33cc66}
+input[type=text],input[type=password]{background:#0d0d0d;border:1px solid #333;color:#e0e0e0;font-family:inherit;font-size:.85rem;padding:6px 10px;border-radius:3px;width:160px}
+input:focus{outline:none;border-color:#C9A84C}
+.audio-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:.78rem;color:#aaa}
+.audio-row:last-child{border-bottom:none}
+.audio-name{flex:1}
+.relay-ch{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:3px;padding:10px}
+.relay-label{font-size:.75rem;color:#777;margin-bottom:8px}
+.relay-btns{display:flex;align-items:center;gap:8px}
+#msg{font-size:.75rem;height:18px;color:#33cc66;margin-top:8px}
+.placeholder{color:#333;font-size:.75rem;font-style:italic}
+.attempts{font-size:.9rem;font-weight:bold;color:#cc7733}
+</style>
+</head>
+<body>
+<h1>LE CŒUR BLEU <span>Management Console</span></h1>
+
+<!-- SERVICE CONTROL -->
+<div class="card">
+  <h2>TERMINAL SERVICE</h2>
+  <div class="row" style="gap:8px">
+    <button class="primary" onclick="svc('start')">▶ Starta</button>
+    <button onclick="svc('restart')">↺ Starta om</button>
+    <button class="danger" onclick="svc('stop')">■ Stoppa</button>
+  </div>
+  <div id="svcmsg" style="font-size:.75rem;height:18px;color:#33cc66;margin-top:8px"></div>
+</div>
+
+<!-- FLOOR 2 -->
+<div class="card">
+  <h2>VÅNING 2 — TERMINAL</h2>
+  <div class="row">
+    <label>Status</label>
+    <span id="f2state" class="badge s-unknown">—</span>
+  </div>
+  <div class="row">
+    <label>USB-nyckel</label>
+    <span id="f2usb"><span class="dot dot-off"></span>Inte ansluten</span>
+  </div>
+  <div class="row">
+    <label>Felförsök</label>
+    <span id="f2attempts" class="attempts">0</span>
+  </div>
+  <div class="row" style="margin-top:12px;gap:8px">
+    <button class="primary" onclick="f2cmd('disarm')">Trigga Disarm</button>
+    <button onclick="f2cmd('simulate_usb_on')">Simulera USB in</button>
+    <button onclick="f2cmd('simulate_usb_off')">Simulera USB ut</button>
+    <button class="danger" onclick="f2cmd('reset')">Reset Terminal</button>
+  </div>
+</div>
+
+<!-- RELÄER -->
+<div class="card">
+  <h2>RELÄER</h2>
+  <div id="relayGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="relay-ch" id="relay-1">
+      <div class="relay-label">Kanal 1 <span class="badge s-usb_wait">Floor 2 solenoid</span></div>
+      <div class="relay-btns">
+        <button class="primary" onclick="relaySet(1,'on')">ON</button>
+        <button class="danger" onclick="relaySet(1,'off')">OFF</button>
+        <span class="dot dot-off" id="rdot-1"></span>
+      </div>
+    </div>
+    <div class="relay-ch" id="relay-2">
+      <div class="relay-label">Kanal 2 <span class="badge s-usb_wait">Reserv</span></div>
+      <div class="relay-btns">
+        <button class="primary" onclick="relaySet(2,'on')">ON</button>
+        <button class="danger" onclick="relaySet(2,'off')">OFF</button>
+        <span class="dot dot-off" id="rdot-2"></span>
+      </div>
+    </div>
+    <div class="relay-ch" id="relay-3">
+      <div class="relay-label">Kanal 3 <span class="badge s-boot">Otestad</span></div>
+      <div class="relay-btns">
+        <button class="primary" onclick="relaySet(3,'on')">ON</button>
+        <button class="danger" onclick="relaySet(3,'off')">OFF</button>
+        <span class="dot dot-off" id="rdot-3"></span>
+      </div>
+    </div>
+    <div class="relay-ch" id="relay-4">
+      <div class="relay-label">Kanal 4 <span class="badge s-boot">Otestad</span></div>
+      <div class="relay-btns">
+        <button class="primary" onclick="relaySet(4,'on')">ON</button>
+        <button class="danger" onclick="relaySet(4,'off')">OFF</button>
+        <span class="dot dot-off" id="rdot-4"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FLOOR 1 & 3 PLACEHOLDER -->
+<div class="card">
+  <h2>VÅNING 1 — THE PLAN</h2>
+  <p class="placeholder">Kort-läsare, solenoid och RFID-simulering — tillgängligt när Pi-only är byggt.</p>
+</div>
+<div class="card">
+  <h2>VÅNING 3 — THE VAULT</h2>
+  <div class="row">
+    <label>Piezo event</label>
+    <span id="f3piezo" class="badge s-unknown">—</span>
+    <span id="f3piezo_ts" style="font-size:.72rem;color:#555;margin-left:8px"></span>
+  </div>
+</div>
+
+<!-- KONFIGURATION -->
+<div class="card">
+  <h2>KONFIGURATION</h2>
+  <div class="row">
+    <label>Lösenord</label>
+    <input type="text" id="pwInput" placeholder="BR-4471" maxlength="20">
+    <button onclick="savePassword()">Spara</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<!-- AUDIO -->
+<div class="card">
+  <h2>LJUD</h2>
+  <div id="audioList"><span class="placeholder">Inga MP3-filer i /home/pi/audio/</span></div>
+</div>
+
+<script>
+function badge(state) {
+  const labels = {
+    BOOT:'BOOT', USB_WAIT:'VÄNTAR PÅ NYCKEL', LOGIN:'INLOGGNING',
+    MENU:'MENY', ALARM:'ALARM', CONFIRM:'BEKRÄFTAR',
+    SUCCESS:'AVVÄPNAD', LOCKOUT:'LÅST'
+  };
+  return labels[state] || state || '—';
+}
+
+function relaySet(ch, action) {
+  fetch('/api/relay/' + ch + '/' + action, {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      if (d.state) updateRelayDots(d.state);
+    });
+}
+
+function updateRelayDots(state) {
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById('rdot-' + i);
+    if (!dot) continue;
+    dot.className = state[String(i)] ? 'dot dot-on' : 'dot dot-off';
+  }
+}
+
+function svc(action) {
+  fetch('/api/service/' + action, {method:'POST'}).then(r=>r.json()).then(d => {
+    const el = document.getElementById('svcmsg');
+    el.textContent = d.ok ? action + ' OK' : ('Fel: ' + d.msg);
+    setTimeout(()=>el.textContent='', 4000);
+  });
+}
+
+function pollState() {
+  fetch('/api/state').then(r=>r.json()).then(data => {
+    const f2 = data.floor2 || {};
+    const s = (f2.state || 'unknown').toLowerCase();
+    const el = document.getElementById('f2state');
+    el.textContent = badge(f2.state);
+    el.className = 'badge s-' + s;
+
+    const usb = f2.usb_connected || f2.simulate_usb;
+    document.getElementById('f2usb').innerHTML = usb
+      ? '<span class="dot dot-on"></span>Ansluten' + (f2.simulate_usb ? ' (simulerad)' : '')
+      : '<span class="dot dot-off"></span>Inte ansluten';
+
+    document.getElementById('f2attempts').textContent = f2.attempts || 0;
+    if (data.relays) updateRelayDots(data.relays);
+
+    const f3 = data.floor3 || {};
+    if (f3.piezo_event) {
+      const el = document.getElementById('f3piezo');
+      el.textContent = f3.piezo_event;
+      el.className = 'badge s-success';
+      document.getElementById('f3piezo_ts').textContent = f3.piezo_ts || '';
+    }
+  }).catch(()=>{});
+}
+
+function f2cmd(cmd) {
+  fetch('/api/floor2/command', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd})
+  });
+}
+
+function savePassword() {
+  const pw = document.getElementById('pwInput').value.trim();
+  if (!pw) return;
+  fetch('/api/password', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw})
+  }).then(r=>r.json()).then(d => {
+    const msg = document.getElementById('msg');
+    msg.textContent = d.ok ? 'Lösenord sparat.' : ('Fel: ' + d.error);
+    setTimeout(()=>msg.textContent='', 3000);
+  });
+}
+
+function loadAudio() {
+  fetch('/api/audio/list').then(r=>r.json()).then(data => {
+    const el = document.getElementById('audioList');
+    if (!data.files.length) return;
+    el.innerHTML = data.files.map(f =>
+      `<div class="audio-row">
+        <span class="audio-name">${f}</span>
+        <button onclick="playAudio('${f}')">▶ Spela</button>
+      </div>`
+    ).join('');
+  });
+}
+
+function playAudio(file) {
+  fetch('/api/audio/play', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({file})
+  });
+}
+
+function loadConfig() {
+  fetch('/api/config').then(r=>r.json()).then(d => {
+    document.getElementById('pwInput').value = d.password || '';
+  });
+}
+
+loadConfig();
+loadAudio();
+pollState();
+setInterval(pollState, 2000);
+setInterval(loadAudio, 10000);
+</script>
+</body>
+</html>

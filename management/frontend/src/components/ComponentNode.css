@@ -1,0 +1,40 @@
+.cn-root {
+  background: var(--surface);
+  border: 1.5px solid var(--node-color, var(--border));
+  border-radius: var(--radius);
+  min-width: 160px;
+  font-size: 12px;
+  transition: box-shadow .15s;
+  cursor: default;
+}
+.cn-root.cn-selected {
+  box-shadow: 0 0 0 2px var(--node-color, var(--accent));
+}
+
+.cn-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--node-color, var(--accent)) 15%, transparent);
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+.cn-icon { font-size: 16px; line-height: 1; }
+.cn-label { font-weight: 600; font-size: 12px; color: var(--text); }
+.cn-subtitle { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.cn-handles { padding: 6px 0; }
+.cn-handle-row {
+  display: flex; align-items: center; position: relative;
+  padding: 3px 10px;
+}
+.cn-handle-left { flex-direction: row; }
+.cn-handle-right { flex-direction: row-reverse; }
+.cn-handle-label { font-size: 10px; color: var(--muted); }
+
+.cn-handle.react-flow__handle {
+  width: 8px; height: 8px;
+  background: var(--node-color, var(--accent));
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+.cn-handle-left .cn-handle { margin-right: 6px; }
+.cn-handle-right .cn-handle { margin-left: 6px; }

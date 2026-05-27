@@ -1,0 +1,145 @@
+import { useEffect, useState, useCallback } from 'react'
+import { api } from '../api'
+import './NodeModal.css'
+
+function RelayLive({ channel }) {
+  const ch = Number(channel) || 1
+  const [state, setState] = useState(null)
+  const [busy, setBusy]   = useState(false)
+  const [err, setErr]     = useState('')
+
+  const fetchState = useCallback(() => {
+    api.getRelayState()
+      .then(s => setState(s[String(ch)]))
+      .catch(() => setErr('Board not connected'))
+  }, [ch])
+
+  useEffect(() => {
+    fetchState()
+    const id = setInterval(fetchState, 2000)
+    return () => clearInterval(id)
+  }, [fetchState])
+
+  async function toggle(action) {
+    setBusy(true)
+    setErr('')
+    try {
+      const res = await api.setRelay(ch, action)
+      setState(res.state[String(ch)])
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const isOn = state === true
+
+  return (
+    <div className="nm-live">
+      <div className="nm-live-title">Live — Channel {ch}</div>
+      <div className="nm-live-row">
+        <div className={`nm-live-status ${state === null ? 'unknown' : isOn ? 'on' : 'off'}`}>
+          <span className="nm-live-dot" />
+          {state === null ? 'Connecting…' : isOn ? 'ON' : 'OFF'}
+        </div>
+        <div className="nm-live-btns">
+          <button
+            className="nm-live-btn on"
+            onClick={() => toggle('on')}
+            disabled={busy || isOn}
+          >ON</button>
+          <button
+            className="nm-live-btn off"
+            onClick={() => toggle('off')}
+            disabled={busy || !isOn}
+          >OFF</button>
+        </div>
+      </div>
+      {err && <div className="nm-live-err">{err}</div>}
+    </div>
+  )
+}
+
+const LIVE_COMPONENTS = {
+  relay_channel: (params) => <RelayLive channel={params?.channel ?? 1} />,
+}
+
+export default function NodeModal({ node, library, onChange, onClose, onDelete }) {
+  if (!node || !library) return null
+
+  const allComps = library.categories.flatMap(c => c.components)
+  const def = allComps.find(c => c.type === node.data.componentType)
+  if (!def) return null
+
+  const LiveSection = LIVE_COMPONENTS[node.data.componentType]
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="nm-backdrop" onClick={onClose}>
+      <div className="nm-modal" onClick={e => e.stopPropagation()}>
+
+        <div className="nm-header" style={{ '--c': node.data.color }}>
+          <span className="nm-icon">{node.data.icon}</span>
+          <div className="nm-titles">
+            <div className="nm-title">{node.data.label}</div>
+            <div className="nm-sub">{node.data.subtitle}</div>
+          </div>
+          <button className="nm-delete" onClick={() => onDelete(node.id)} title="Ta bort">🗑</button>
+          <button className="nm-close" onClick={onClose}>✕</button>
+        </div>
+
+        {def.params.length > 0 && (
+          <div className="nm-body">
+            {def.params.map(p => (
+              <div key={p.key} className="nm-field">
+                <label>{p.label}</label>
+                {p.type === 'select' ? (
+                  <select
+                    value={node.data.params?.[p.key] ?? p.default}
+                    onChange={e => onChange(node.id, p.key, e.target.value)}
+                  >
+                    {p.options.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                ) : p.type === 'boolean' ? (
+                  <div className="nm-toggle">
+                    <input
+                      type="checkbox"
+                      id={`param-${p.key}`}
+                      checked={!!(node.data.params?.[p.key] ?? p.default)}
+                      onChange={e => onChange(node.id, p.key, e.target.checked)}
+                    />
+                    <label htmlFor={`param-${p.key}`} className="nm-toggle-label">
+                      {node.data.params?.[p.key] ?? p.default ? 'Enabled' : 'Disabled'}
+                    </label>
+                  </div>
+                ) : (
+                  <input
+                    type={p.type === 'password' ? 'password' : p.type === 'number' || p.type === 'pin' ? 'number' : 'text'}
+                    value={node.data.params?.[p.key] ?? p.default}
+                    onChange={e => onChange(node.id, p.key,
+                      p.type === 'number' || p.type === 'pin' ? Number(e.target.value) : e.target.value
+                    )}
+                  />
+                )}
+                {p.type === 'pin' && (
+                  <span className="nm-hint">Physical board pin number (not GPIO number)</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {LiveSection && <LiveSection params={node.data.params} />}
+
+      </div>
+    </div>
+  )
+}

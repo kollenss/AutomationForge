@@ -1,0 +1,84 @@
+.pp-layout { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.pp-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 24px; height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.pp-logo { display: flex; align-items: center; gap: 8px; }
+.pp-logo-mark { font-size: 20px; color: var(--accent); }
+.pp-logo-name { font-size: 16px; font-weight: 600; letter-spacing: .02em; }
+.pp-error { color: var(--danger); font-size: 12px; }
+
+.pp-body { display: flex; flex: 1; overflow: hidden; }
+
+.pp-projects-col {
+  width: 280px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.pp-scenes-col { flex: 1; overflow-y: auto; padding: 24px; }
+
+.pp-col-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  margin-bottom: 12px;
+}
+.pp-col-head h2 { font-size: 14px; font-weight: 600; color: var(--text); }
+
+.pp-new-form {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 4px;
+}
+.pp-new-form-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+.pp-project-card {
+  position: relative; padding: 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  transition: border-color .15s;
+}
+.pp-project-card:hover { border-color: var(--accent); }
+.pp-project-card.active { border-color: var(--accent); background: #1e1a2e; }
+.pp-project-name { font-size: 13px; font-weight: 500; }
+.pp-project-desc { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-project-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+.pp-delete-btn {
+  position: absolute; top: 8px; right: 8px;
+  padding: 2px 6px; font-size: 11px;
+  opacity: 0; transition: opacity .15s;
+}
+.pp-project-card:hover .pp-delete-btn,
+.pp-scene-card:hover .pp-delete-btn { opacity: 1; }
+
+.pp-muted { color: var(--muted); font-size: 12px; padding: 8px 0; }
+
+.pp-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 8px; color: var(--muted);
+}
+.pp-empty-icon { font-size: 48px; opacity: .2; }
+.pp-empty-title { font-size: 16px; font-weight: 500; color: var(--text); }
+.pp-empty-sub { font-size: 13px; }
+
+.pp-scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px; margin-top: 8px;
+}
+.pp-scene-card {
+  position: relative; padding: 20px 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  transition: border-color .15s, transform .1s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pp-scene-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.pp-scene-icon { font-size: 24px; margin-bottom: 4px; }
+.pp-scene-name { font-size: 14px; font-weight: 500; }
+.pp-scene-meta { font-size: 11px; color: var(--muted); }

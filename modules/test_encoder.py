@@ -2,12 +2,12 @@
 """Isolated encoder test — run on Pi to verify KY-040 wiring.
 
 Usage:
-    sudo python3 /home/pi/shared/test_encoder.py
+    sudo python3 /home/pi/modules/test_encoder.py
     Vrid encoder. Ctrl+C för att avsluta.
 """
 
 import sys, time
-sys.path.insert(0, '/home/pi/shared')
+sys.path.insert(0, '/home/pi/modules')
 
 import pigpio
 from encoder import RotaryEncoder

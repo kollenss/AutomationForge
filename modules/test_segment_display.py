@@ -2,11 +2,11 @@
 """Isolerat test för MAX7219 — räknar 0–99 på varje sifferpar i tur och ordning.
 
 Usage:
-    sudo python3 /home/pi/shared/test_segment_display.py
+    sudo python3 /home/pi/modules/test_segment_display.py
 """
 
 import sys, time
-sys.path.insert(0, '/home/pi/shared')
+sys.path.insert(0, '/home/pi/modules')
 from segment_display import SegmentDisplay
 
 d = SegmentDisplay()

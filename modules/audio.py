@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Central audio module — /home/pi/shared/audio.py
+Central audio module — /home/pi/modules/audio.py
 
 Använder DFPlayer Mini via FT232RL USB-seriell adapter.
 Kräver: pip3 install pyserial
@@ -32,7 +32,7 @@ import time
 
 import serial
 
-STATE_FILE = '/home/pi/shared/state.json'
+STATE_FILE = '/home/pi/modules/state.json'
 VOICE_DIR  = '/home/pi/audio'
 
 TRACK_MAP = {

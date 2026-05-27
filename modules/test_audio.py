@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
 Test för audio-modulen.
-Kör: python3 /home/pi/shared/test_audio.py
+Kör: python3 /home/pi/modules/test_audio.py
 
 Generera ljud först om sounds/-mappen saknas:
-  python3 /home/pi/shared/generate_sounds.py
+  python3 /home/pi/modules/generate_sounds.py
 """
 
 import time
 import sys
-sys.path.insert(0, '/home/pi/shared')
+sys.path.insert(0, '/home/pi/modules')
 from audio import Audio
 
 a = Audio()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Genererar WAV-ljudeffekter till /home/pi/shared/sounds/
-Kör: python3 /home/pi/shared/generate_sounds.py
+Genererar WAV-ljudeffekter till /home/pi/modules/sounds/
+Kör: python3 /home/pi/modules/generate_sounds.py
 """
 
 import math
@@ -10,7 +10,7 @@ import struct
 import wave
 
 SAMPLE_RATE = 44100
-OUT_DIR     = '/home/pi/shared/sounds'
+OUT_DIR     = '/home/pi/modules/sounds'
 
 # DFPlayer-namngivning: 0001.wav, 0002.wav osv.
 TRACKS = [

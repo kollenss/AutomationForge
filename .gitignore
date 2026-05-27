@@ -4,8 +4,8 @@ management/data/
 management/frontend/node_modules/
 **/__pycache__/
 **/*.pyc
-shared/sounds/
-shared/state.json
+modules/sounds/
+modules/state.json
 *.log
 
 # ── Diamond Heist game files (not part of AutomationForge) ─────────────────

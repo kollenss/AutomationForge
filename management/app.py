@@ -7,7 +7,7 @@ import urllib.error as _urllib_err
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 
-sys.path.insert(0, '/home/pi/shared')
+sys.path.insert(0, '/home/pi/modules')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'projects')

@@ -3,7 +3,7 @@ import { api } from '../api'
 import './NodeModal.css'
 
 function RelayLive({ channel }) {
-  const ch = Number(channel) || 1
+  const ch = Number(channel) >= 1 ? Number(channel) : 1
   const [state, setState] = useState(null)
   const [busy, setBusy]   = useState(false)
   const [err, setErr]     = useState('')
@@ -62,7 +62,7 @@ function RelayLive({ channel }) {
 }
 
 const LIVE_COMPONENTS = {
-  relay_channel: (params) => <RelayLive channel={params?.channel ?? 1} />,
+  relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
 }
 
 export default function NodeModal({ node, library, onChange, onClose, onDelete }) {
@@ -75,7 +75,7 @@ export default function NodeModal({ node, library, onChange, onClose, onDelete }
   const LiveSection = LIVE_COMPONENTS[node.data.componentType]
 
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose() }
+    const onKey = e => { if (e.key === 'Escape' || e.key === 'Enter') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -124,6 +124,8 @@ export default function NodeModal({ node, library, onChange, onClose, onDelete }
                   <input
                     type={p.type === 'password' ? 'password' : p.type === 'number' || p.type === 'pin' ? 'number' : 'text'}
                     value={node.data.params?.[p.key] ?? p.default}
+                    min={p.min != null ? p.min : undefined}
+                    max={p.max != null ? p.max : undefined}
                     onChange={e => onChange(node.id, p.key,
                       p.type === 'number' || p.type === 'pin' ? Number(e.target.value) : e.target.value
                     )}
@@ -137,7 +139,7 @@ export default function NodeModal({ node, library, onChange, onClose, onDelete }
           </div>
         )}
 
-        {LiveSection && <LiveSection params={node.data.params} />}
+        {LiveSection && <LiveSection key={node.data.params?.channel} params={node.data.params} />}
 
       </div>
     </div>

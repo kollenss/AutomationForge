@@ -11,6 +11,26 @@ MANIFEST = {
 }
 
 
+def get_components():
+    n = MANIFEST['channels']
+    return [{
+        'type': 'relay_channel',
+        'label': 'Relay Channel',
+        'subtitle': MANIFEST['label'],
+        'category': 'output',
+        'color': '#f59e0b',
+        'icon': '⚡',
+        'display_param': 'channel',
+        'params': [
+            {'key': 'channel', 'label': f'Channel (1–{n})', 'type': 'number',
+             'default': 1, 'min': 1, 'max': n},
+            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid'},
+        ],
+        'inputs': [{'key': 'trigger', 'label': 'Trigger'}],
+        'outputs': [{'key': 'state', 'label': 'State'}],
+    }]
+
+
 class RelayBoard:
     def __init__(self):
         self._bb = BitBangDevice('DAE000iW')

@@ -57,6 +57,7 @@ function EditorInner({ project, scene, library }) {
             subtitle: def.subtitle,
             color: def.color,
             icon: def.icon,
+            displayParam: def.display_param || null,
             params: Object.fromEntries((def.params || []).map(p => [p.key, p.default])),
             inputHandles:  def.inputs  || [],
             outputHandles: def.outputs || [],

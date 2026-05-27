@@ -5,14 +5,19 @@ export default function ComponentNode({ data, selected }) {
   const inputs  = data.inputHandles  || []
   const outputs = data.outputHandles || []
 
+  const displayValue = data.displayParam ? data.params?.[data.displayParam] : null
+
   return (
     <div className={`cn-root ${selected ? 'cn-selected' : ''}`} style={{ '--node-color': data.color }}>
       <div className="cn-header">
         <span className="cn-icon">{data.icon}</span>
         <div className="cn-labels">
           <div className="cn-label">{data.label}</div>
-          <div className="cn-subtitle">{data.subtitle}</div>
+          <div className="cn-subtitle">{data.params?.name || data.subtitle}</div>
         </div>
+        {displayValue != null && (
+          <span className="cn-badge">{displayValue}</span>
+        )}
       </div>
 
       {inputs.length > 0 && (

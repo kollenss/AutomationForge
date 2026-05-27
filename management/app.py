@@ -85,9 +85,25 @@ def catch_all(path):
 
 # ── Component Library ──────────────────────────────────────────────────────
 
+_CATEGORY_META = {
+    'input':  {'label': 'Input',  'color': '#22c55e'},
+    'output': {'label': 'Output', 'color': '#f59e0b'},
+    'logic':  {'label': 'Logic',  'color': '#8b5cf6'},
+}
+
 @app.route('/api/components')
 def api_components():
-    return jsonify(_read_json(LIBRARY_PATH, {'categories': []}))
+    static = _read_json(LIBRARY_PATH, {'categories': []})
+    hw_data, _ = _hw_get('/components')
+    hw_cats = hw_data.get('categories', []) if isinstance(hw_data, dict) else []
+
+    # Merge: hardware categories first, then static categories not already present
+    result = list(hw_cats)
+    existing_ids = {c['id'] for c in result}
+    for cat in static.get('categories', []):
+        if cat['id'] not in existing_ids:
+            result.append(cat)
+    return jsonify({'categories': result})
 
 
 # ── Projects ───────────────────────────────────────────────────────────────

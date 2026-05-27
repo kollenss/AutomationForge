@@ -10,14 +10,19 @@ SHARED_DIR = Path(__file__).parent
 sys.path.insert(0, str(SHARED_DIR))
 
 app = Flask(__name__)
-_devices = {}  # type -> {'manifest': dict, 'device': Device|None, 'error': str|None}
+_devices = {}  # type -> {'manifest', 'device', 'error', 'mod'}
+
+CATEGORY_META = {
+    'input':  {'label': 'Input',  'color': '#22c55e'},
+    'output': {'label': 'Output', 'color': '#f59e0b'},
+    'logic':  {'label': 'Logic',  'color': '#8b5cf6'},
+}
 
 
 def _load_modules():
     for path in sorted(SHARED_DIR.glob('*.py')):
         if path.name.startswith('_') or path.name == 'hardware_service.py':
             continue
-        # Fast pre-check: skip files that don't declare MANIFEST (avoids executing side-effectful scripts)
         try:
             source = path.read_text()
         except Exception:
@@ -39,10 +44,10 @@ def _load_modules():
             continue
         try:
             device = mod.Device()
-            _devices[hw_type] = {'manifest': manifest, 'device': device, 'error': None}
+            _devices[hw_type] = {'manifest': manifest, 'device': device, 'error': None, 'mod': mod}
             print(f'[HW] loaded: {hw_type}')
         except Exception as e:
-            _devices[hw_type] = {'manifest': manifest, 'device': None, 'error': str(e)}
+            _devices[hw_type] = {'manifest': manifest, 'device': None, 'error': str(e), 'mod': mod}
             print(f'[HW] {hw_type} unavailable: {e}')
 
 
@@ -59,6 +64,30 @@ def hw_list():
             entry['error'] = info['error']
         result.append(entry)
     return jsonify(result)
+
+
+@app.route('/components')
+def hw_components():
+    by_cat = {}
+    for hw_type, info in _devices.items():
+        mod = info.get('mod')
+        if not (mod and hasattr(mod, 'get_components')):
+            continue
+        connected = info['device'] is not None
+        for comp in mod.get_components():
+            cat = comp.get('category', 'output')
+            if cat not in by_cat:
+                by_cat[cat] = []
+            entry = {k: v for k, v in comp.items() if k != 'category'}
+            entry['connected'] = connected
+            by_cat[cat].append(entry)
+
+    categories = []
+    for cat_id, comps in by_cat.items():
+        meta = CATEGORY_META.get(cat_id, {'label': cat_id.title(), 'color': '#6b7280'})
+        categories.append({'id': cat_id, 'label': meta['label'],
+                           'color': meta['color'], 'components': comps})
+    return jsonify({'categories': categories})
 
 
 @app.route('/hardware/<hw_type>/state')

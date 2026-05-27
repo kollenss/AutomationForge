@@ -11,6 +11,13 @@
   box-shadow: 0 0 0 2px var(--node-color, var(--accent));
 }
 
+.cn-badge {
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+  background: color-mix(in srgb, var(--node-color) 20%, transparent);
+  color: var(--node-color);
+  padding: 2px 6px; border-radius: 4px;
+}
+
 .cn-header {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px;

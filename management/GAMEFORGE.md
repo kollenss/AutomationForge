@@ -23,40 +23,92 @@ Målet är att en "game designer" utan djup kodkunskap ska kunna:
 | Som game designer vill jag lägga till en scen i projektet | ✅ |
 | Som designer vill jag dra en komponent från biblioteket till canvas | ✅ |
 | Som designer vill jag klicka ett kort och konfigurera dess parametrar | ✅ |
+| Som designer vill jag ta bort ett kort från canvas | ✅ |
 | Som designer vill jag länka outputs till inputs (visuellt) | ✅ |
 | Som designer vill jag se live-status på reläkortet | ✅ |
 | Som designer vill jag slå på/av enskilda reläkanaler | ✅ |
+| Som designer vill jag att komponentbiblioteket speglar ansluten hårdvara | ✅ |
 
 ---
 
 ## Arkitektur
 
 ```
-management/
-├── app.py                    Flask REST API (port 5000)
-├── component_library.json    Komponentdefinitioner
-├── data/
-│   └── projects/             En JSON-fil per projekt (UUID.json)
-├── static/                   Byggd React-app (serveras av Flask)
-└── frontend/                 React-källkod (byggs med Vite)
-    ├── src/
-    │   ├── App.jsx            Router
-    │   ├── api.js             API-klient
-    │   ├── pages/
-    │   │   ├── ProjectsPage.jsx    Projektlista + scen-lista
-    │   │   └── SceneEditorPage.jsx Canvas-editorn
-    │   └── components/
-    │       ├── ComponentLibrary.jsx  Höger panel – dra-och-släpp
-    │       ├── ComponentNode.jsx     Custom React Flow node
-    │       ├── NodeModal.jsx         Modal vid klick på nod
-    │       └── NodeModal.css
-    ├── package.json
-    └── vite.config.js         Bygger till ../static/
+AutomationForge/
+├── modules/                      Hårdvarumoduler (en fil per enhet)
+│   ├── hardware_service.py       Flask REST API (port 5101) — äger all hårdvara
+│   ├── relay_trigger.py          USB Relay Board (MANIFEST + Device + get_components)
+│   └── ...                       Framtida moduler (RFID, DFPlayer, etc.)
+│
+└── management/
+    ├── app.py                    Flask REST API (port 5000)
+    ├── component_library.json    Statiska Logic-komponenter
+    ├── data/
+    │   └── projects/             En JSON-fil per projekt (UUID.json)
+    ├── static/                   Byggd React-app (serveras av Flask)
+    └── frontend/                 React-källkod (byggs med Vite)
+        └── src/
+            ├── App.jsx
+            ├── api.js
+            ├── pages/
+            │   ├── ProjectsPage.jsx
+            │   └── SceneEditorPage.jsx
+            └── components/
+                ├── ComponentLibrary.jsx
+                ├── ComponentNode.jsx
+                ├── NodeModal.jsx
+                └── NodeModal.css
 ```
 
-### Backend (Flask)
+---
 
-Ren REST API. Ingen spellogik, ingen hårdkodad spelreferens.
+## Hardware Service (`modules/hardware_service.py`)
+
+En enda Flask-tjänst på port 5101 som **äger all hårdvara**. Både GameForge och spel-appar (floor2_terminal) pratar med denna tjänst istället för att hålla hårdvara direkt.
+
+**Modulupptäckt vid start:** Scannar `modules/` efter `.py`-filer som innehåller `MANIFEST` och `Device`. Filer utan dessa ignoreras (test-scripts, utilities).
+
+**Endpoints:**
+```
+GET  /hardware              → lista laddade enheter + manifest + connected-status
+GET  /components            → komponentdefinitioner från alla moduler (för GameForge)
+GET  /hardware/:type/state  → enhetens nuvarande tillstånd
+POST /hardware/:type/:cmd   → kör kommando (JSON-body med parametrar)
+```
+
+### Modulkontrakt
+
+En modul registreras om den har:
+
+```python
+MANIFEST = {
+    'type': 'relay_board',      # Unikt enhets-ID
+    'label': 'USB Relay Board',
+    'channels': 4,              # Enhetsspecifika fält
+}
+
+def get_components():
+    """Returnerar komponentdefinitioner för GameForge-biblioteket."""
+    n = MANIFEST['channels']
+    return [{ 'type': 'relay_channel', ..., 'min': 1, 'max': n }]
+
+class Device:
+    def get_state(self): ...     # → dict
+    def execute(self, cmd, **kwargs): ...  # → dict
+```
+
+---
+
+## Backend – GameForge (`management/app.py`)
+
+Ren REST API. Ingen spellogik, ingen hårdkodad hårdvarureferens.
+
+**Komponentbibliotek:**
+```
+GET  /api/components    → mergar hardware_service /components med component_library.json
+```
+Hardware-kategorier (Input/Output) kommer dynamiskt från anslutna moduler.
+Logic-kategorin kommer från den statiska `component_library.json`.
 
 **Projekt-endpoints:**
 ```
@@ -70,138 +122,120 @@ PUT    /api/projects/:id/scenes/:sid
 DELETE /api/projects/:id/scenes/:sid
 ```
 
-**Komponentbibliotek:**
+**Hårdvara (proxy till hardware_service):**
 ```
-GET    /api/components         → returnerar component_library.json
+GET  /api/hardware/relay               → state {1: bool, 2: bool, ...}
+POST /api/hardware/relay/:ch/on        → slå på kanal
+POST /api/hardware/relay/:ch/off       → slå av kanal
 ```
-
-**Hårdvara:**
-```
-GET    /api/hardware/relay               → state för alla 4 kanaler {1: bool, ...}
-POST   /api/hardware/relay/:ch/on        → slå på kanal
-POST   /api/hardware/relay/:ch/off       → slå av kanal
-```
-
-**Relay-singleton:** `RelayBoard` från `shared/relay_trigger.py` instansieras EN gång vid första anrop och hålls öppen. `close()` anropas aldrig (den nollställer utgångarna). State trackas i `_relay_state`-dict i minnet.
-
-### Frontend (React + React Flow)
-
-- **React 18** + **@xyflow/react v12** (React Flow) + **React Router v6**
-- **Vite** som build tool — output till `management/static/`
-- SPA med hash-less routing; Flask catch-all serverar `index.html` för alla icke-API-rutter
-- **Drag-and-drop:** native DOM `dragover`/`drop`-lyssnare på canvas-wrapper (React Flows egna event-handlers störde, native DOM-listeners kringgår det)
-- **UUID:** `crypto.randomUUID()` fungerar inte på HTTP (kräver HTTPS) — använder `Math.random()`-baserad UUID-funktion istället
-- **`screenToFlowPosition`** från `useReactFlow()`-hooken (inte `onInit`-pattern)
 
 ---
 
-## Komponentbiblioteket (`component_library.json`)
+## Frontend (React + React Flow)
 
-Komponentdefinitioner är statiska JSON. Tre kategorier: **Input**, **Output**, **Logic**.
+- **React 18** + **@xyflow/react v12** + **React Router v6**
+- **Vite** — output till `management/static/`
+- SPA; Flask catch-all serverar `index.html` för alla icke-API-rutter
+- **Drag-and-drop:** native DOM `dragover`/`drop`-lyssnare (React Flows egna events störde)
+- **UUID:** `crypto.randomUUID()` kräver HTTPS — använder `Math.random()`-baserad `uid()`
+
+---
+
+## Komponentbiblioteket
+
+`component_library.json` innehåller **bara Logic-komponenter** (Password Lock, Sequence Gate, Timer, Note). Hårdvarukomponenter (Input/Output) genereras dynamiskt av modulerna via hardware_service.
 
 ### Schema för en komponent
 
 ```json
 {
-  "type": "relay_channel",          // Unikt ID, används som node-typ i canvas
-  "label": "Relay Channel",         // Visningsnamn
-  "subtitle": "USB Relay Board",    // Chip/modul-namn
-  "color": "#f59e0b",               // Kategorifärg (syns på noden och i modalen)
-  "icon": "⚡",                      // Emoji-ikon
-  "params": [                       // Konfigurerbara parametrar
+  "type": "relay_channel",
+  "label": "Relay Channel",
+  "subtitle": "USB Relay Board",
+  "color": "#f59e0b",
+  "icon": "⚡",
+  "display_param": "channel",        // Visas som badge på canvas-kortet
+  "params": [
     {
-      "key": "channel",             // Nyckel i node.data.params
+      "key": "channel",
       "label": "Channel (1–4)",
-      "type": "number",             // text | number | password | select | boolean | pin
-      "default": 1
+      "type": "number",
+      "default": 1,
+      "min": 1,                      // Begränsar input i modalen
+      "max": 4                       // Sätts dynamiskt från MANIFEST.channels
+    },
+    {
+      "key": "name",
+      "label": "Label",
+      "type": "text",
+      "default": "solenoid"          // Visas som subtitle på canvas-kortet
     }
   ],
-  "inputs":  [{ "key": "trigger", "label": "Trigger" }],   // Inkommande handles
-  "outputs": [{ "key": "state",   "label": "State"   }]    // Utgående handles
+  "inputs":  [{ "key": "trigger", "label": "Trigger" }],
+  "outputs": [{ "key": "state",   "label": "State"   }]
 }
 ```
 
 **Param-typer:**
-| Typ | Input-element | Kommentar |
-|-----|--------------|-----------|
-| `text` | `<input type=text>` | |
-| `number` | `<input type=number>` | |
-| `password` | `<input type=password>` | T.ex. lösenkod |
+| Typ | Input | Kommentar |
+|-----|-------|-----------|
+| `text` | `<input type=text>` | Visas som subtitle på kortet om key=`name` |
+| `number` | `<input type=number>` | Respekterar `min`/`max` |
+| `password` | `<input type=password>` | |
 | `select` | `<select>` | Kräver `options: [{value, label}]` |
 | `boolean` | `<input type=checkbox>` | |
-| `pin` | `<input type=number>` | Visar hint om att det är fysiskt boardnummer |
+| `pin` | `<input type=number>` | Hint om fysiskt board-pinnummer |
+
+**Canvas-kortet:**
+- `display_param` → badge (t.ex. kanalnummer) i kortets header
+- `params.name` → visas som subtitle (ersätter standard-subtitle)
 
 ---
 
 ## Live-testning per komponenttyp
 
-Modalen (`NodeModal.jsx`) har ett `LIVE_COMPONENTS`-objekt som mappar komponenttyp → React-komponent:
+`NodeModal.jsx` har ett `LIVE_COMPONENTS`-objekt som mappar komponenttyp → React-komponent:
 
 ```js
 const LIVE_COMPONENTS = {
-  relay_channel: (params) => <RelayLive channel={params?.channel ?? 1} />,
-  // rfid_rc522: (params) => <RfidLive />,   ← kommande
-  // encoder_ky040: ...
-  // dfplayer: ...
+  relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
+  // rfid_rc522: ({ params }) => <RfidLive />,   ← kommande
 }
 ```
-
-Lägg till en ny live-sektion genom att:
-1. Skriva en ny React-komponent (t.ex. `RfidLive`) i `NodeModal.jsx`
-2. Lägga till Flask-endpoints under `/api/hardware/`
-3. Registrera i `LIVE_COMPONENTS`-mappen
 
 ### `RelayLive` (implementerad)
 
 - Pollar `/api/hardware/relay` var 2:e sekund
-- Visar ON/OFF-status med färgad dot (grön/grå)
-- ON/OFF-knappar — aktiv knapp dimmas (disabled när redan i det läget)
-- Vid fel: "Board not connected"
+- Visar ON/OFF-status per kanal med färgad dot
+- ON/OFF-knappar — disabled när redan i det läget
+- Mountas om med ny key när kanal ändras (säkerställer korrekt polling)
+
+Lägg till ny live-sektion:
+1. Skriv React-komponent i `NodeModal.jsx`
+2. Lägg till Flask-proxy i `app.py` → hardware_service
+3. Implementera `Device.execute()` i modulen
+4. Registrera i `LIVE_COMPONENTS`
 
 ---
 
-## Datamodell – Projekt-JSON
+## Datamodell – Node i canvas
 
 ```json
 {
   "id": "uuid",
-  "name": "The Diamond Heist",
-  "description": "...",
-  "created_at": "2026-05-27T21:00:00Z",
-  "updated_at": "2026-05-27T22:00:00Z",
-  "scenes": [
-    {
-      "id": "uuid",
-      "name": "Floor 1 – The Plan",
-      "nodes": [
-        {
-          "id": "uuid",
-          "type": "component",
-          "position": { "x": 200, "y": 150 },
-          "data": {
-            "componentType": "relay_channel",
-            "label": "Relay Channel",
-            "subtitle": "USB Relay Board",
-            "color": "#f59e0b",
-            "icon": "⚡",
-            "params": { "channel": 1, "name": "panel_lock" },
-            "inputHandles":  [{ "key": "trigger", "label": "Trigger" }],
-            "outputHandles": [{ "key": "state",   "label": "State" }]
-          }
-        }
-      ],
-      "edges": [
-        {
-          "id": "uuid",
-          "source": "node-id",
-          "sourceHandle": "card_detected",
-          "target": "node-id-2",
-          "targetHandle": "trigger",
-          "animated": true
-        }
-      ]
-    }
-  ]
+  "type": "component",
+  "position": { "x": 200, "y": 150 },
+  "data": {
+    "componentType": "relay_channel",
+    "label": "Relay Channel",
+    "subtitle": "USB Relay Board",
+    "color": "#f59e0b",
+    "icon": "⚡",
+    "displayParam": "channel",
+    "params": { "channel": 2, "name": "dörrlås" },
+    "inputHandles":  [{ "key": "trigger", "label": "Trigger" }],
+    "outputHandles": [{ "key": "state",   "label": "State" }]
+  }
 }
 ```
 
@@ -210,33 +244,30 @@ Lägg till en ny live-sektion genom att:
 ## Build & Deploy
 
 ```bash
-# På Pi (via SSH):
-cd /home/pi/management/frontend
-npm install      # Bara första gången
-npm run build    # Bygger till /home/pi/management/static/
+# Bygga frontend (på Pi via SSH):
+cd /home/pi/management/frontend && npm run build
 
-# Starta Flask:
-cd /home/pi/management
-python app.py    # Kör på port 5000
+# Starta i rätt ordning:
+nohup python3 /home/pi/modules/hardware_service.py > /tmp/hardware_service.log 2>&1 &
+nohup python3 /home/pi/management/app.py > /tmp/gameforge.log 2>&1 &
 ```
-
-Flask serveras via `setsid bash -c '...' &` för att detacha från SSH-sessionen.
-
-**OBS:** `crypto.randomUUID()` kräver HTTPS. Appen serveras på HTTP. Använd `uid()`-funktionen i frontend-koden (Math.random-baserad UUID v4).
 
 ---
 
 ## Nästa steg (backlog)
 
-| Komponent | Live-test |
-|-----------|-----------|
+**Hårdvarumoduler att konvertera till ny service-arkitektur:**
+| Modul | Live-test i GameForge |
+|-------|----------------------|
 | RFID RC522 | Visa senast läst kort-UID |
-| DFPlayer Mini | Spela spår, volymkontroll |
 | KY-040 Encoder | Visa aktuellt värde |
 | MAX7219 Display | Skicka text/nummer |
+| DFPlayer Mini | Spela spår, volymkontroll |
 | NeoPixel Ring | Välj färg, tänd/släck |
 | Servo SG90 | Sätt vinkel |
 
+**Platform:**
 - **Export till Python-kod** — generera floor-script från canvas-konfiguration
 - **Scene-dependencies** — definiera vad som triggar vad (utanför canvasen)
-- **Systemd-service** — autostart av GameForge vid Pi-boot
+- **Systemd-services** — autostart av hardware_service + GameForge vid Pi-boot
+- **Komponentbibliotek från manifest** — `ComponentLibrary`-panelen visar connected/disconnected per komponent

@@ -115,7 +115,10 @@ class GameEngine:
                 and self._params_match(node['data'].get('params', {}), value)
             ]
         results = []
-        scalar = value.get('delta', value) if isinstance(value, dict) else value
+        if isinstance(value, dict):
+            scalar = value.get('delta', value.get('uid', value))
+        else:
+            scalar = value
         for node in source_nodes:
             results.extend(self.process_event(node['id'], h, scalar))
         return results

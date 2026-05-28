@@ -106,6 +106,29 @@ function EditorInner({ project, scene, library }) {
     } finally { setSaving(false) }
   }
 
+  function syncNodes() {
+    // Build type → definition lookup from the component library
+    const defByType = {}
+    for (const cat of (library.categories || [])) {
+      for (const comp of (cat.components || [])) {
+        defByType[comp.type] = comp
+      }
+    }
+    setNodes(ns => ns.map(node => {
+      const def = defByType[node.data?.componentType]
+      if (!def) return node          // unknown type — leave untouched
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          inputHandles:  def.inputs  || [],
+          outputHandles: def.outputs || [],
+        },
+      }
+    }))
+    setSaved(false)
+  }
+
   // Mark dirty whenever nodes/edges change after initial load
   const isFirst = useRef(true)
   useEffect(() => {
@@ -123,6 +146,10 @@ function EditorInner({ project, scene, library }) {
         <span className="se-scene-name">{scene.name}</span>
         <div className="se-header-right">
           {!saved && <span className="se-unsaved">Unsaved changes</span>}
+          <button className="se-sync-btn" onClick={syncNodes}
+            title="Uppdatera alla noder till senaste komponentdefinition">
+            ↺ Sync noder
+          </button>
           <button className="primary" onClick={save} disabled={saving || saved}>
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
           </button>

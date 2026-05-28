@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { socket } from '../socket'
 import './ComponentNode.css'
@@ -27,6 +27,60 @@ function EncoderStatus({ encoderId }) {
   )
 }
 
+function ComboLockStatus({ nodeId }) {
+  // status: 'idle' | 'active' | 'failed' | 'unlocked'
+  const [status, setStatus] = useState('idle')
+  const [phase,  setPhase]  = useState(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.node_id !== nodeId) return
+
+      if (timerRef.current) clearTimeout(timerRef.current)
+
+      if (s.unlocked) {
+        setStatus('unlocked')
+        timerRef.current = setTimeout(() => setStatus('idle'), 3000)
+        return
+      }
+      if (s.failed) {
+        setStatus('failed')
+        timerRef.current = setTimeout(() => setStatus('active'), 2000)
+        return
+      }
+      if (s.enabled) {
+        setStatus('active')
+        setPhase(0)
+        return
+      }
+      // Phase advance or count update
+      if (s.phase !== undefined) setPhase(s.phase)
+      setStatus('active')
+    }
+
+    socket.on('combo_state', onState)
+    return () => {
+      socket.off('combo_state', onState)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [nodeId])
+
+  const cfg = {
+    idle:     { label: 'INAKTIV',        cls: '' },
+    active:   { label: `FAS ${phase + 1}/4`, cls: 'active' },
+    failed:   { label: 'FEL',            cls: 'failed' },
+    unlocked: { label: 'UPPLÅST',        cls: 'unlocked' },
+  }[status]
+
+  return (
+    <div className={`cn-combo-status ${cfg.cls ? `cn-combo-${cfg.cls}` : ''}`}>
+      <span className="cn-combo-dot" />
+      <span>{cfg.label}</span>
+    </div>
+  )
+}
+
 function RelayStatus({ channel }) {
   const ch = String(channel)
   const [on, setOn] = useState(null)
@@ -51,7 +105,7 @@ function RelayStatus({ channel }) {
   )
 }
 
-export default function ComponentNode({ data, selected }) {
+export default function ComponentNode({ id, data, selected }) {
   const inputs  = data.inputHandles  || []
   const outputs = data.outputHandles || []
 
@@ -70,6 +124,9 @@ export default function ComponentNode({ data, selected }) {
         )}
       </div>
 
+      {data.componentType === 'combo_lock' && (
+        <ComboLockStatus nodeId={id} />
+      )}
       {data.componentType === 'relay_channel' && (
         <RelayStatus channel={data.params?.channel ?? 1} />
       )}

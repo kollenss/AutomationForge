@@ -124,6 +124,23 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
 
 _EXPECTED_DIRS = ['left', 'right', 'left', 'right']
 
+
+def _combo_display_str(state):
+    """Build an 8-char string for a MAX7219 8-digit display.
+    Two digits per phase: locked phases show their locked value, the
+    active phase shows the current count, future phases are blank.
+    Example: phase 1 locked at 42, phase 2 active at 15 → '4215    '
+    """
+    out = ''
+    for i in range(4):
+        if i < state['phase']:
+            out += f"{state['locked'][i]:02d}"
+        elif i == state['phase']:
+            out += f"{state['count']:02d}"
+        else:
+            out += '  '
+    return out
+
 _CONFIRM_STEPS    = 2       # consecutive opposite steps to confirm reversal
 _CLICK_GRACE_S    = 0.25   # seconds to ignore ALL steps after target hit
 _DEBOUNCE_S       = 0.150  # seconds: ignore opp step if same-dir was this recent
@@ -181,6 +198,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         if emit:
             emit('combo_state', {'node_id': node_id, 'enabled': True,
                                  'phase': 0, 'count': 0})
+        propagate('display_8', '00      ')
         return
 
     # ── delta input ─────────────────────────────────────────────────────────
@@ -271,6 +289,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                 'at_target': state['at_target'],
             })
         propagate('current_value', state['count'])
+        propagate('display_8', _combo_display_str(state))
 
     else:
         # ── Opposite / wrong direction ─────────────────────────────────────
@@ -311,6 +330,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             state['reset_time']      = now   # lockout: drain burst after commit
             _log(node_id, 'LOCK', locked=locked_val, new_phase=state['phase'],
                  correct=(locked_val == code[phase]))
+            propagate('display_8', _combo_display_str(state))
 
             if state['phase'] >= 4:
                 # All four digits locked — validate entire combination

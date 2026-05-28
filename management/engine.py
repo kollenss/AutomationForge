@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 import urllib.request as _req
 
 HW_SERVICE = 'http://localhost:5101'
@@ -75,11 +76,23 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
 #   Phase 3 expects RIGHT turns
 #
 # Mechanic: count increments each step in the expected direction (wraps 0-99).
-# When count == code[phase]: emit click (digit_locked), set at_target flag.
-# When direction reverses while at_target: commit digit, advance phase.
-# When direction reverses while NOT at_target: fail, reset.
+# When count == code[phase]: fire digit_locked, set at_target + grace window.
+# When direction reverses AND CONFIRM_STEPS opp-steps seen: commit digit.
+# Reversal before target → fail + reset (stay enabled for retry).
+#
+# Noise rejection (ported from vault.py):
+#   CONFIRM_STEPS  — require N consecutive opposite steps before treating
+#                    as a real reversal (avoids single-tick mechanical noise)
+#   CLICK_GRACE_S  — ignore same-direction steps for 250 ms after hitting
+#                    target (absorbs encoder burst after the click)
+#   DEBOUNCE_S     — ignore opposite step if last same-dir step was < 15 ms
+#                    ago (filters brief directional glitches)
 
 _EXPECTED_DIRS = ['left', 'right', 'left', 'right']
+
+_CONFIRM_STEPS = 2       # consecutive opposite steps to confirm reversal
+_CLICK_GRACE_S = 0.25   # seconds to ignore same-dir steps after target hit
+_DEBOUNCE_S    = 0.015  # seconds: ignore opp step if same-dir was this recent
 
 
 def _combo_reset(state, keep_enabled=False):
@@ -87,6 +100,11 @@ def _combo_reset(state, keep_enabled=False):
     state['count']          = 0
     state['at_target']      = False
     state['last_direction'] = None
+    state['pending_dir']    = None
+    state['pending_count']  = 0
+    state['dir_confirmed']  = False
+    state['click_time']     = 0.0
+    state['last_same_time'] = 0.0
     if not keep_enabled:
         state['enabled'] = False
 
@@ -98,6 +116,11 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'count':          0,
         'at_target':      False,
         'last_direction': None,
+        'pending_dir':    None,
+        'pending_count':  0,
+        'dir_confirmed':  False,
+        'click_time':     0.0,
+        'last_same_time': 0.0,
     })
 
     # ── enable input ────────────────────────────────────────────────────────
@@ -130,15 +153,30 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     direction = 'left' if delta < 0 else 'right'
     phase     = state['phase']
     expected  = _EXPECTED_DIRS[phase]
+    now       = time.time()
 
     if direction == expected:
-        # Moving in expected direction — count up
+        # ── Correct direction ──────────────────────────────────────────────
+        # Cancel any pending reversal detection (was mechanical noise)
+        state['dir_confirmed']  = False
+        state['pending_dir']    = None
+        state['pending_count']  = 0
+        state['last_same_time'] = now
+
+        # Grace window after hitting target — absorbs encoder burst noise
+        if now - state['click_time'] < _CLICK_GRACE_S:
+            return
+
         state['count'] = (state['count'] + 1) % 100
         state['last_direction'] = direction
 
         if state['count'] == code[phase]:
-            state['at_target'] = True
+            state['at_target']  = True
+            state['click_time'] = now
             propagate('digit_locked', state['count'])
+        elif state['at_target']:
+            # Overshot past target — clear flag so reversal now fails
+            state['at_target'] = False
 
         if emit:
             emit('combo_state', {
@@ -149,35 +187,63 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             })
         propagate('current_value', state['count'])
 
-    elif state.get('last_direction') == expected:
-        # Direction just reversed — commit this digit
-        if state['at_target']:
-            state['phase']     += 1
-            state['count']      = 0
-            state['at_target']  = False
-            state['last_direction'] = None
+    else:
+        # ── Opposite / wrong direction ─────────────────────────────────────
+        # No direction established yet in this phase — ignore
+        if state['last_direction'] is None:
+            return
 
-            if state['phase'] >= 4:
-                # All four digits correct — unlocked!
-                if emit:
-                    emit('combo_state', {'node_id': node_id, 'unlocked': True})
-                propagate('unlocked', True)
-                _combo_reset(state, keep_enabled=False)
+        # Debounce: single spurious opposite tick within 15 ms → ignore
+        if now - state['last_same_time'] < _DEBOUNCE_S:
+            return
+
+        if state['dir_confirmed']:
+            # Reversal confirmed — this step commits the digit
+            state['dir_confirmed']  = False
+            state['pending_dir']    = None
+            state['pending_count']  = 0
+
+            if state['at_target']:
+                state['phase']          += 1
+                state['count']           = 0
+                state['at_target']       = False
+                state['last_direction']  = None  # fresh start for next phase
+                state['click_time']      = 0.0
+                state['last_same_time']  = 0.0
+
+                if state['phase'] >= 4:
+                    if emit:
+                        emit('combo_state', {'node_id': node_id, 'unlocked': True})
+                    propagate('unlocked', True)
+                    _combo_reset(state, keep_enabled=False)
+                else:
+                    if emit:
+                        emit('combo_state', {
+                            'node_id': node_id,
+                            'phase':   state['phase'],
+                            'count':   0,
+                        })
             else:
+                # Reversed before reaching target — fail, stay enabled for retry
                 if emit:
-                    emit('combo_state', {
-                        'node_id': node_id,
-                        'phase':   state['phase'],
-                        'count':   0,
-                    })
-        else:
-            # Reversed before reaching target — fail
-            if emit:
-                emit('combo_state', {'node_id': node_id, 'failed': True})
-            propagate('failed', True)
-            _combo_reset(state, keep_enabled=True)  # stay enabled, let them retry
+                    emit('combo_state', {'node_id': node_id, 'failed': True})
+                propagate('failed', True)
+                _combo_reset(state, keep_enabled=True)
 
-    # else: moving in unexpected direction before any expected move — ignore
+        else:
+            # Accumulate opposite steps toward confirmation
+            if state['pending_dir'] == direction:
+                state['pending_count'] += 1
+            else:
+                state['pending_dir']   = direction
+                state['pending_count'] = 1
+
+            if state['pending_count'] >= _CONFIRM_STEPS:
+                state['dir_confirmed']  = True
+                state['pending_dir']    = None
+                state['pending_count']  = 0
+
+    # else: direction neither expected nor opposite (can't happen with binary left/right)
 
 
 def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):

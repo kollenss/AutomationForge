@@ -180,12 +180,47 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     # else: moving in unexpected direction before any expected move — ignore
 
 
+def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):
+    h = (handle or 'trigger').lower()
+    if h == 'stop':
+        _hw_post('/hardware/dfplayer/stop', {})
+        return
+    # trigger / play / anything else → play configured track
+    track  = max(1, min(255, int(params.get('track',  1))))
+    volume = max(0, min(30,  int(params.get('volume', 20))))
+    _hw_post('/hardware/dfplayer/play', {'track': track, 'volume': volume})
+
+
+def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
+    h      = (handle or 'value').lower()
+    digits = int(params.get('digits', 2))
+
+    if h == 'clear':
+        _hw_post('/hardware/max7219/clear', {})
+        return
+
+    if h in ('value', 'current_value'):
+        try:
+            text = str(int(value)).zfill(digits)
+        except (ValueError, TypeError):
+            text = str(value)
+    elif h == 'text':
+        text = str(value) if not isinstance(value, bool) else ('ERR' if value else '   ')
+    else:
+        text = str(value)
+
+    intensity = int(params.get('intensity', 8))
+    _hw_post('/hardware/max7219/show', {'text': text, 'digits': digits, 'intensity': intensity})
+
+
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
     'relay_channel': _exec_relay,
     'rfid_auth':     _exec_rfid_auth,
     'combo_lock':    _exec_combo_lock,
+    'dfplayer':      _exec_dfplayer,
+    'max7219':       _exec_max7219,
 }
 
 

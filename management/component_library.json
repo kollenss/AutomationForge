@@ -6,6 +6,38 @@
       "color": "#8b5cf6",
       "components": [
         {
+          "type": "combo_lock",
+          "label": "Combo Lock",
+          "subtitle": "Rotary combination",
+          "color": "#dc2626",
+          "icon": "🔐",
+          "display_param": "name",
+          "params": [
+            {
+              "key": "code",
+              "label": "Code (4 numbers 0-99, comma-separated)",
+              "type": "text",
+              "default": "10,20,30,40"
+            },
+            {
+              "key": "name",
+              "label": "Label",
+              "type": "text",
+              "default": "vault"
+            }
+          ],
+          "inputs": [
+            {"key": "enable",       "label": "Enable"},
+            {"key": "delta",        "label": "Encoder Delta"}
+          ],
+          "outputs": [
+            {"key": "current_value", "label": "Display Value"},
+            {"key": "digit_locked",  "label": "Digit Locked"},
+            {"key": "unlocked",      "label": "Unlocked"},
+            {"key": "failed",        "label": "Failed"}
+          ]
+        },
+        {
           "type": "rfid_auth",
           "label": "RFID Auth",
           "subtitle": "Card access gate",

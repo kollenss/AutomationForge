@@ -21,11 +21,13 @@ def _hw_post(path, data=None):
 
 # ---------------------------------------------------------------------------
 # Executors — one per component type.
-# Signature: (node_id, params, handle, value, emit, propagate) → None
-#   emit(event, payload)     — push socket event to frontend
-#   propagate(handle, value) — fire this node's output handle downstream
+# Signature: (node_id, params, handle, value, emit, propagate, get_state) → None
+#
+#   emit(event, payload)         — push socket event to frontend
+#   propagate(handle, value)     — fire this node's output handle downstream
+#   get_state(defaults=None)     — return mutable per-node state dict
 
-def _exec_relay(node_id, params, handle, value, emit, propagate):
+def _exec_relay(node_id, params, handle, value, emit, propagate, get_state):
     channel = int(params.get('channel', 1))
     if handle == 'trigger_on':
         action = 'on'
@@ -38,7 +40,7 @@ def _exec_relay(node_id, params, handle, value, emit, propagate):
         emit('relay_state', resp['state'])
 
 
-def _exec_rfid_auth(node_id, params, handle, value, emit, propagate):
+def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
     if handle and handle.lower() != 'card_read':
         return
     valid_uids = {u.strip().upper() for u in params.get('valid_uids', '').split(',') if u.strip()}
@@ -49,9 +51,141 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate):
         propagate('denied', uid)
 
 
+# ── Combo Lock ──────────────────────────────────────────────────────────────
+# Models a 4-digit rotary combination lock.
+#
+# Params:
+#   code  — "12,34,56,78"  (four numbers 0-99)
+#   name  — display label
+#
+# Inputs:
+#   enable — activates the lock (connect from RFID Auth authorized)
+#   delta  — encoder step (+1 right / -1 left)
+#
+# Outputs:
+#   current_value — current count (0-99) for display
+#   digit_locked  — fires when a digit is confirmed (connect to DFPlayer click)
+#   unlocked      — all 4 digits correct
+#   failed        — wrong direction at wrong time
+#
+# Direction sequence: left → right → left → right
+#   Phase 0 expects LEFT turns  (delta < 0)
+#   Phase 1 expects RIGHT turns (delta > 0)
+#   Phase 2 expects LEFT turns
+#   Phase 3 expects RIGHT turns
+#
+# Mechanic: count increments each step in the expected direction (wraps 0-99).
+# When count == code[phase]: emit click (digit_locked), set at_target flag.
+# When direction reverses while at_target: commit digit, advance phase.
+# When direction reverses while NOT at_target: fail, reset.
+
+_EXPECTED_DIRS = ['left', 'right', 'left', 'right']
+
+
+def _combo_reset(state, keep_enabled=False):
+    state['phase']          = 0
+    state['count']          = 0
+    state['at_target']      = False
+    state['last_direction'] = None
+    if not keep_enabled:
+        state['enabled'] = False
+
+
+def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state):
+    state = get_state({
+        'enabled':        False,
+        'phase':          0,
+        'count':          0,
+        'at_target':      False,
+        'last_direction': None,
+    })
+
+    # ── enable input ────────────────────────────────────────────────────────
+    if handle == 'enable':
+        _combo_reset(state, keep_enabled=False)
+        state['enabled'] = True
+        if emit:
+            emit('combo_state', {'node_id': node_id, 'enabled': True,
+                                 'phase': 0, 'count': 0})
+        return
+
+    # ── delta input ─────────────────────────────────────────────────────────
+    if handle != 'delta' or not state['enabled']:
+        return
+
+    # Parse code
+    raw = params.get('code', '10,20,30,40')
+    try:
+        code = [max(0, min(99, int(x.strip()))) for x in raw.split(',')]
+    except (ValueError, AttributeError):
+        return
+    while len(code) < 4:
+        code.append(1)
+    code = code[:4]
+
+    delta = int(value) if value else 0
+    if delta == 0:
+        return
+
+    direction = 'left' if delta < 0 else 'right'
+    phase     = state['phase']
+    expected  = _EXPECTED_DIRS[phase]
+
+    if direction == expected:
+        # Moving in expected direction — count up
+        state['count'] = (state['count'] + 1) % 100
+        state['last_direction'] = direction
+
+        if state['count'] == code[phase]:
+            state['at_target'] = True
+            propagate('digit_locked', state['count'])
+
+        if emit:
+            emit('combo_state', {
+                'node_id':   node_id,
+                'phase':     phase,
+                'count':     state['count'],
+                'at_target': state['at_target'],
+            })
+        propagate('current_value', state['count'])
+
+    elif state.get('last_direction') == expected:
+        # Direction just reversed — commit this digit
+        if state['at_target']:
+            state['phase']     += 1
+            state['count']      = 0
+            state['at_target']  = False
+            state['last_direction'] = None
+
+            if state['phase'] >= 4:
+                # All four digits correct — unlocked!
+                if emit:
+                    emit('combo_state', {'node_id': node_id, 'unlocked': True})
+                propagate('unlocked', True)
+                _combo_reset(state, keep_enabled=False)
+            else:
+                if emit:
+                    emit('combo_state', {
+                        'node_id': node_id,
+                        'phase':   state['phase'],
+                        'count':   0,
+                    })
+        else:
+            # Reversed before reaching target — fail
+            if emit:
+                emit('combo_state', {'node_id': node_id, 'failed': True})
+            propagate('failed', True)
+            _combo_reset(state, keep_enabled=True)  # stay enabled, let them retry
+
+    # else: moving in unexpected direction before any expected move — ignore
+
+
+# ---------------------------------------------------------------------------
+
 _EXECUTORS = {
     'relay_channel': _exec_relay,
     'rfid_auth':     _exec_rfid_auth,
+    'combo_lock':    _exec_combo_lock,
 }
 
 
@@ -63,7 +197,7 @@ class GameEngine:
         self._nodes = {}        # node_id → node dict
         self._edges = []
         self._emit = None       # set to socketio.emit by app.py
-        self._node_state = {}   # node_id → state dict (for stateful behavior nodes)
+        self._node_state = {}   # node_id → state dict (stateful behavior nodes)
 
     def set_emit(self, fn):
         self._emit = fn
@@ -87,7 +221,12 @@ class GameEngine:
                 self._node_state[node_id] = dict(defaults or {})
             return self._node_state[node_id]
 
-    def trigger_node(self, node_id, value):
+    def trigger_node(self, node_id, value, handle=None):
+        """Call a node's executor directly.
+
+        handle — optional input-handle name (e.g. 'enable', 'delta').
+                 Useful for injecting events into behavior nodes for testing.
+        """
         with self._lock:
             node = self._nodes.get(node_id)
         if not node:
@@ -96,9 +235,10 @@ class GameEngine:
         executor = _EXECUTORS.get(comp_type)
         if not executor:
             return None
-        params = node['data'].get('params', {})
+        params    = node['data'].get('params', {})
         propagate = lambda h, v: self.process_event(node_id, h, v)
-        executor(node_id, params, None, value, self._emit, propagate)
+        get_state = lambda defaults=None: self.get_node_state(node_id, defaults)
+        executor(node_id, params, handle, value, self._emit, propagate, get_state)
         return {'node_id': node_id, 'type': comp_type}
 
     def process_hardware_event(self, device_type, event, value):
@@ -148,13 +288,14 @@ class GameEngine:
             if not node:
                 continue
             comp_type = node['data']['componentType']
-            executor = _EXECUTORS.get(comp_type)
+            executor  = _EXECUTORS.get(comp_type)
             if not executor:
                 continue
-            params = node['data'].get('params', {})
-            # nid=node['id'] captures the correct id per iteration (avoids closure issue)
+            params    = node['data'].get('params', {})
+            # nid=node['id'] captures correct id per iteration (avoids closure issue)
             propagate = lambda h, v, nid=node['id']: self.process_event(nid, h, v)
-            executor(node['id'], params, target_handle, value, self._emit, propagate)
+            get_state = lambda defaults=None, nid=node['id']: self.get_node_state(nid, defaults)
+            executor(node['id'], params, target_handle, value, self._emit, propagate, get_state)
             results.append({'node_id': node['id'], 'type': comp_type})
 
         return results

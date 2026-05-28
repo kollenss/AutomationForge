@@ -332,12 +332,13 @@ def api_engine_activate():
 
 @app.route('/engine/trigger', methods=['POST'])
 def api_engine_trigger():
-    body = request.json or {}
+    body    = request.json or {}
     node_id = body.get('node_id')
     value   = body.get('value', True)
+    handle  = body.get('handle')   # optional: inject into a specific input handle
     if not node_id:
         return jsonify({'error': 'node_id required'}), 400
-    result = engine.trigger_node(node_id, value)
+    result = engine.trigger_node(node_id, value, handle=handle)
     if result is None:
         return jsonify({'error': 'Node not found or no executor'}), 404
     return jsonify({'result': result})

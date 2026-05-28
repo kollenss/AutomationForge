@@ -9,8 +9,11 @@ from encoder import RotaryEncoder
 
 # ── Physical encoder definitions ───────────────────────────────────────────
 # Add one entry per connected KY-040. ID must be unique.
+# debounce_ms: ignore CLK falling edges within this window after each accepted
+# edge. Default 3 ms catches fast electrical bounce; KY-040 mechanical bounce
+# can extend to ~55 ms, so 60 ms gives one clean pulse per physical detent.
 ENCODERS = [
-    {'id': 1, 'clk': 17, 'dt': 27},
+    {'id': 1, 'clk': 17, 'dt': 27, 'debounce_ms': 60},
 ]
 
 MANIFEST = {
@@ -54,7 +57,8 @@ class Device:
         for e in ENCODERS:
             enc = RotaryEncoder(
                 self._pi, clk_pin=e['clk'], dt_pin=e['dt'],
-                callback=lambda delta, eid=e['id']: self._on_step(eid, delta)
+                callback=lambda delta, eid=e['id']: self._on_step(eid, delta),
+                debounce_ms=e.get('debounce_ms', 3.0)
             )
             self._encoders[e['id']] = {'enc': enc, 'position': 0, 'last_delta': 0}
 

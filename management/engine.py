@@ -124,10 +124,11 @@ _EXPECTED_DIRS = ['left', 'right', 'left', 'right']
 
 _CONFIRM_STEPS    = 2       # consecutive opposite steps to confirm reversal
 _CLICK_GRACE_S    = 0.25   # seconds to ignore ALL steps after target hit
-_DEBOUNCE_S       = 0.050  # seconds: ignore opp step if same-dir was this recent
-                            # KY-040 generates spurious opp pulses ~20-30 ms after
-                            # a real step due to DT signal setup timing — 50 ms filters
-                            # these while still allowing deliberate reversals (>100 ms)
+_DEBOUNCE_S       = 0.100  # seconds: ignore opp step if same-dir was this recent
+                            # KY-040 generates a burst of ~6 spurious opp CLK edges
+                            # per real step at ~10 ms intervals for up to 70 ms.
+                            # Log shows max burst = 69 ms; deliberate reversals start
+                            # ≥200 ms after last step — 100 ms filters all noise safely.
 _RESET_LOCKOUT_S  = 0.4    # seconds to ignore deltas after ENABLE / FAIL / LOCK
                             # absorbs queued encoder events after a state reset
 

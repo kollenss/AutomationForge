@@ -131,6 +131,10 @@ _DEBOUNCE_S       = 0.150  # seconds: ignore opp step if same-dir was this recen
                             # start ≥200 ms after the last step (safe margin: 50 ms).
 _RESET_LOCKOUT_S  = 0.4    # seconds to ignore deltas after ENABLE / FAIL / LOCK
                             # absorbs queued encoder events after a state reset
+_MIN_STEP_INTERVAL_S = 0.040  # 40 ms min between accepted same-dir steps
+                               # KY-040 between-detent noise produces same-dir bursts
+                               # at ~24-34 ms — this blocks the second pulse in each pair
+                               # while still allowing deliberate turning (≥50 ms/step)
 
 
 def _combo_reset(state, keep_enabled=False):
@@ -143,6 +147,7 @@ def _combo_reset(state, keep_enabled=False):
     state['dir_confirmed']  = False
     state['click_time']     = 0.0
     state['last_same_time'] = 0.0
+    state['last_step_time'] = 0.0
     state['reset_time']     = time.time()   # lockout window starts now
     if not keep_enabled:
         state['enabled'] = False
@@ -160,6 +165,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'dir_confirmed':  False,
         'click_time':     0.0,
         'last_same_time': 0.0,
+        'last_step_time': 0.0,
         'reset_time':     0.0,
     })
 
@@ -220,6 +226,15 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             _log(node_id, 'GRACE', phase=phase, count=state['count'],
                  grace_ms=round((now - state['click_time']) * 1000))
             return
+
+        # Rate-limit same-direction steps — between-detent CLK noise produces
+        # spurious steps in the same direction at ~24-34 ms intervals.
+        step_gap = now - state['last_step_time']
+        if step_gap < _MIN_STEP_INTERVAL_S:
+            _log(node_id, 'RATELIMIT', phase=phase, count=state['count'],
+                 gap_ms=round(step_gap * 1000))
+            return
+        state['last_step_time'] = now
 
         prev_count      = state['count']
         state['count']  = (state['count'] + 1) % 100

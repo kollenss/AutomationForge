@@ -22,8 +22,8 @@ def get_components():
         'icon': '⚡',
         'display_param': 'channel',
         'params': [
-            {'key': 'channel', 'label': f'Channel (1–{n})', 'type': 'number',
-             'default': 1, 'min': 1, 'max': n},
+            {'key': 'channel', 'label': 'Channel', 'type': 'select',
+             'default': 1, 'options': [{'value': i, 'label': f'Channel {i}'} for i in range(1, n + 1)]},
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid'},
         ],
         'inputs': [

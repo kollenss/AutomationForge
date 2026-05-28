@@ -109,8 +109,10 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
 #
 # Mechanic: count increments each step in the expected direction (wraps 0-99).
 # When count == code[phase]: fire digit_locked, set at_target + grace window.
-# When direction reverses AND CONFIRM_STEPS opp-steps seen: commit digit.
-# Reversal before target → fail + reset (stay enabled for retry).
+# Overshooting is fine — click re-fires on the next lap around.
+# When direction reverses (CONFIRM_STEPS opp-steps confirmed): lock current
+# count and advance phase. The locked value doesn't have to be the target —
+# wrong locks lead to a failed combination after all 4 phases are done.
 #
 # Noise rejection (ported from vault.py):
 #   CONFIRM_STEPS  — require N consecutive opposite steps before treating
@@ -149,6 +151,7 @@ def _combo_reset(state, keep_enabled=False):
     state['last_same_time'] = 0.0
     state['last_step_time'] = 0.0
     state['reset_time']     = time.time()   # lockout window starts now
+    state['locked']         = [0, 0, 0, 0]
     if not keep_enabled:
         state['enabled'] = False
 
@@ -167,6 +170,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'last_same_time': 0.0,
         'last_step_time': 0.0,
         'reset_time':     0.0,
+        'locked':         [0, 0, 0, 0],
     })
 
     # ── enable input ────────────────────────────────────────────────────────
@@ -289,44 +293,46 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             return
 
         if state['dir_confirmed']:
-            # Reversal confirmed — this step commits the digit
+            # Reversal confirmed — lock whatever count we're on and advance.
+            # Locking at the wrong value means the final check will fail.
             state['dir_confirmed']  = False
             state['pending_dir']    = None
             state['pending_count']  = 0
 
-            if state['at_target']:
-                locked_val = state['count']
-                state['phase']          += 1
-                state['count']           = 0
-                state['at_target']       = False
-                state['last_direction']  = None  # fresh start for next phase
-                state['click_time']      = 0.0
-                state['last_same_time']  = 0.0
-                state['reset_time']      = now   # lockout: drain burst after commit
-                _log(node_id, 'LOCK', locked=locked_val,
-                     new_phase=state['phase'])
+            locked_val = state['count']
+            state['locked'][phase]   = locked_val
+            state['phase']          += 1
+            state['count']           = 0
+            state['at_target']       = False
+            state['last_direction']  = None  # fresh start for next phase
+            state['click_time']      = 0.0
+            state['last_same_time']  = 0.0
+            state['last_step_time']  = 0.0
+            state['reset_time']      = now   # lockout: drain burst after commit
+            _log(node_id, 'LOCK', locked=locked_val, new_phase=state['phase'],
+                 correct=(locked_val == code[phase]))
 
-                if state['phase'] >= 4:
+            if state['phase'] >= 4:
+                # All four digits locked — validate entire combination
+                if state['locked'] == code:
                     _log(node_id, 'UNLOCK')
                     if emit:
                         emit('combo_state', {'node_id': node_id, 'unlocked': True})
                     propagate('unlocked', True)
                     _combo_reset(state, keep_enabled=False)
                 else:
+                    _log(node_id, 'FAIL', locked=str(state['locked']), code=str(code))
                     if emit:
-                        emit('combo_state', {
-                            'node_id': node_id,
-                            'phase':   state['phase'],
-                            'count':   0,
-                        })
+                        emit('combo_state', {'node_id': node_id, 'failed': True})
+                    propagate('failed', True)
+                    _combo_reset(state, keep_enabled=True)
             else:
-                # Reversed before reaching target — fail, stay enabled for retry
-                _log(node_id, 'FAIL', phase=phase, count=state['count'],
-                     target=code[phase])
                 if emit:
-                    emit('combo_state', {'node_id': node_id, 'failed': True})
-                propagate('failed', True)
-                _combo_reset(state, keep_enabled=True)  # also sets reset_time
+                    emit('combo_state', {
+                        'node_id': node_id,
+                        'phase':   state['phase'],
+                        'count':   0,
+                    })
 
         else:
             # Accumulate opposite steps toward confirmation

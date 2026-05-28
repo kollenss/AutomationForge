@@ -122,9 +122,11 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
 
 _EXPECTED_DIRS = ['left', 'right', 'left', 'right']
 
-_CONFIRM_STEPS = 2       # consecutive opposite steps to confirm reversal
-_CLICK_GRACE_S = 0.25   # seconds to ignore same-dir steps after target hit
-_DEBOUNCE_S    = 0.015  # seconds: ignore opp step if same-dir was this recent
+_CONFIRM_STEPS    = 2       # consecutive opposite steps to confirm reversal
+_CLICK_GRACE_S    = 0.25   # seconds to ignore ALL steps after target hit
+_DEBOUNCE_S       = 0.015  # seconds: ignore opp step if same-dir was this recent
+_RESET_LOCKOUT_S  = 0.4    # seconds to ignore deltas after ENABLE / FAIL / LOCK
+                            # absorbs queued encoder events after a state reset
 
 
 def _combo_reset(state, keep_enabled=False):
@@ -137,6 +139,7 @@ def _combo_reset(state, keep_enabled=False):
     state['dir_confirmed']  = False
     state['click_time']     = 0.0
     state['last_same_time'] = 0.0
+    state['reset_time']     = time.time()   # lockout window starts now
     if not keep_enabled:
         state['enabled'] = False
 
@@ -153,11 +156,12 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'dir_confirmed':  False,
         'click_time':     0.0,
         'last_same_time': 0.0,
+        'reset_time':     0.0,
     })
 
     # ── enable input ────────────────────────────────────────────────────────
     if handle == 'enable':
-        _combo_reset(state, keep_enabled=False)
+        _combo_reset(state, keep_enabled=False)   # sets reset_time = now
         state['enabled'] = True
         _log(node_id, 'ENABLE', phase=0)
         if emit:
@@ -187,6 +191,14 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     phase     = state['phase']
     expected  = _EXPECTED_DIRS[phase]
     now       = time.time()
+
+    # ── Post-reset lockout ─────────────────────────────────────────────────
+    # Encoder events queue up in HTTP; after any reset (ENABLE/FAIL/LOCK)
+    # ignore everything for _RESET_LOCKOUT_S to drain the backlog.
+    lockout_remaining = _RESET_LOCKOUT_S - (now - state.get('reset_time', 0.0))
+    if lockout_remaining > 0:
+        _log(node_id, 'LOCKOUT', phase=phase, ms_left=round(lockout_remaining * 1000))
+        return
 
     if direction == expected:
         # ── Correct direction ──────────────────────────────────────────────
@@ -243,6 +255,13 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         if state['last_direction'] is None:
             return
 
+        # Also block opposite steps during click grace — prevents spurious
+        # PENDING entries from encoder jitter right after the click sound
+        if state['at_target'] and (now - state['click_time'] < _CLICK_GRACE_S):
+            _log(node_id, 'GRACE_OPP', phase=phase, count=state['count'],
+                 grace_ms=round((now - state['click_time']) * 1000))
+            return
+
         # Debounce: single spurious opposite tick within 15 ms → ignore
         gap = now - state['last_same_time']
         if gap < _DEBOUNCE_S:
@@ -264,6 +283,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                 state['last_direction']  = None  # fresh start for next phase
                 state['click_time']      = 0.0
                 state['last_same_time']  = 0.0
+                state['reset_time']      = now   # lockout: drain burst after commit
                 _log(node_id, 'LOCK', locked=locked_val,
                      new_phase=state['phase'])
 
@@ -287,7 +307,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                 if emit:
                     emit('combo_state', {'node_id': node_id, 'failed': True})
                 propagate('failed', True)
-                _combo_reset(state, keep_enabled=True)
+                _combo_reset(state, keep_enabled=True)  # also sets reset_time
 
         else:
             # Accumulate opposite steps toward confirmation

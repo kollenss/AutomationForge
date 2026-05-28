@@ -1,7 +1,39 @@
 import json
+import queue
 import threading
 import time
 import urllib.request as _req
+
+# ── Combo Lock debug log ────────────────────────────────────────────────────
+# Written to /tmp/combo_debug.log while the engine is running.
+# _log() is safe to call from any thread — no file I/O, only a queue put.
+
+_LOG_FILE   = '/tmp/combo_debug.log'
+_log_q      = queue.Queue()
+_log_t0     = time.time()
+
+
+def _log(node_id, event, **kw):
+    """Queue a log entry. Non-blocking — safe to call inside the engine lock."""
+    t = time.time() - _log_t0
+    _log_q.put((t, node_id, event, kw))
+
+
+def _log_worker():
+    with open(_LOG_FILE, 'w', buffering=1) as f:
+        f.write(f"{'t(s)':>8}  {'node':<10}  {'event':<14}  details\n")
+        f.write('-' * 70 + '\n')
+        while True:
+            item = _log_q.get()
+            if item is None:
+                break
+            t, node_id, event, kw = item
+            detail = '  '.join(f'{k}={v}' for k, v in kw.items())
+            short_id = str(node_id)[-8:]   # last 8 chars of UUID is enough
+            f.write(f'{t:8.3f}  {short_id:<10}  {event:<14}  {detail}\n')
+
+
+threading.Thread(target=_log_worker, daemon=True, name='combo-log').start()
 
 HW_SERVICE = 'http://localhost:5101'
 
@@ -127,6 +159,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     if handle == 'enable':
         _combo_reset(state, keep_enabled=False)
         state['enabled'] = True
+        _log(node_id, 'ENABLE', phase=0)
         if emit:
             emit('combo_state', {'node_id': node_id, 'enabled': True,
                                  'phase': 0, 'count': 0})
@@ -158,6 +191,9 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     if direction == expected:
         # ── Correct direction ──────────────────────────────────────────────
         # Cancel any pending reversal detection (was mechanical noise)
+        if state['dir_confirmed']:
+            _log(node_id, 'FALSE_ALARM', phase=phase, count=state['count'],
+                 back_to=direction)
         state['dir_confirmed']  = False
         state['pending_dir']    = None
         state['pending_count']  = 0
@@ -165,18 +201,32 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
 
         # Grace window after hitting target — absorbs encoder burst noise
         if now - state['click_time'] < _CLICK_GRACE_S:
+            _log(node_id, 'GRACE', phase=phase, count=state['count'],
+                 grace_ms=round((now - state['click_time']) * 1000))
             return
 
-        state['count'] = (state['count'] + 1) % 100
+        prev_count      = state['count']
+        state['count']  = (state['count'] + 1) % 100
         state['last_direction'] = direction
+
+        if state['count'] == 0:
+            _log(node_id, 'WRAP', phase=phase, prev=prev_count)
 
         if state['count'] == code[phase]:
             state['at_target']  = True
             state['click_time'] = now
+            _log(node_id, 'CLICK', phase=phase, count=state['count'],
+                 target=code[phase])
             propagate('digit_locked', state['count'])
-        elif state['at_target']:
-            # Overshot past target — clear flag so reversal now fails
-            state['at_target'] = False
+        else:
+            if state['at_target']:
+                # Overshot past target — clear flag so reversal now fails
+                state['at_target'] = False
+                _log(node_id, 'OVERSHOOT', phase=phase, count=state['count'],
+                     target=code[phase])
+            else:
+                _log(node_id, 'COUNT', phase=phase, count=state['count'],
+                     target=code[phase], dir=direction)
 
         if emit:
             emit('combo_state', {
@@ -194,7 +244,10 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             return
 
         # Debounce: single spurious opposite tick within 15 ms → ignore
-        if now - state['last_same_time'] < _DEBOUNCE_S:
+        gap = now - state['last_same_time']
+        if gap < _DEBOUNCE_S:
+            _log(node_id, 'DEBOUNCE', phase=phase, count=state['count'],
+                 gap_ms=round(gap * 1000))
             return
 
         if state['dir_confirmed']:
@@ -204,14 +257,18 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             state['pending_count']  = 0
 
             if state['at_target']:
+                locked_val = state['count']
                 state['phase']          += 1
                 state['count']           = 0
                 state['at_target']       = False
                 state['last_direction']  = None  # fresh start for next phase
                 state['click_time']      = 0.0
                 state['last_same_time']  = 0.0
+                _log(node_id, 'LOCK', locked=locked_val,
+                     new_phase=state['phase'])
 
                 if state['phase'] >= 4:
+                    _log(node_id, 'UNLOCK')
                     if emit:
                         emit('combo_state', {'node_id': node_id, 'unlocked': True})
                     propagate('unlocked', True)
@@ -225,6 +282,8 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                         })
             else:
                 # Reversed before reaching target — fail, stay enabled for retry
+                _log(node_id, 'FAIL', phase=phase, count=state['count'],
+                     target=code[phase])
                 if emit:
                     emit('combo_state', {'node_id': node_id, 'failed': True})
                 propagate('failed', True)
@@ -238,12 +297,16 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                 state['pending_dir']   = direction
                 state['pending_count'] = 1
 
+            _log(node_id, 'PENDING', phase=phase, count=state['count'],
+                 new_dir=direction, pcount=state['pending_count'],
+                 need=_CONFIRM_STEPS)
+
             if state['pending_count'] >= _CONFIRM_STEPS:
                 state['dir_confirmed']  = True
                 state['pending_dir']    = None
                 state['pending_count']  = 0
-
-    # else: direction neither expected nor opposite (can't happen with binary left/right)
+                _log(node_id, 'DETECTED', phase=phase, count=state['count'],
+                     new_dir=direction, note='waiting_for_commit')
 
 
 def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):

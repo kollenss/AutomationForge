@@ -6,6 +6,8 @@ import urllib.request as _urllib_req
 import urllib.error as _urllib_err
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
+from flask_socketio import SocketIO
+from engine import GameEngine
 
 sys.path.insert(0, '/home/pi/modules')
 
@@ -17,8 +19,15 @@ LIBRARY_PATH = os.path.join(BASE_DIR, 'component_library.json')
 os.makedirs(DATA_DIR, exist_ok=True)
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
+
+engine = GameEngine()
+engine.set_emit(socketio.emit)
 
 HW_SERVICE = 'http://localhost:5101'
+
+_active_project_id = None
+_encoder_positions = {}  # device_type → accumulated position
 
 
 def _hw_get(path):
@@ -70,12 +79,35 @@ def _now():
     return datetime.utcnow().isoformat() + 'Z'
 
 
+def _reload_engine(project):
+    n, e = engine.load_project(project)
+    print(f'[engine] loaded "{project.get("name")}" — {n} nodes, {e} edges')
+
+
+def _autoload_engine():
+    global _active_project_id
+    try:
+        files = os.listdir(DATA_DIR)
+    except Exception:
+        return
+    projects = [_read_json(os.path.join(DATA_DIR, f)) for f in files if f.endswith('.json')]
+    projects = [p for p in projects if p]
+    if not projects:
+        return
+    latest = max(projects, key=lambda p: p.get('updated_at', ''))
+    _active_project_id = latest['id']
+    _reload_engine(latest)
+
+
+_autoload_engine()
+
+
 # ── Serve React app ────────────────────────────────────────────────────────
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
-    if path.startswith('api/'):
+    if path.startswith('api/') or path.startswith('engine/'):
         return jsonify({'error': 'Not found'}), 404
     file_path = os.path.join(STATIC_DIR, path)
     if path and os.path.exists(file_path) and os.path.isfile(file_path):
@@ -97,7 +129,6 @@ def api_components():
     hw_data, _ = _hw_get('/components')
     hw_cats = hw_data.get('categories', []) if isinstance(hw_data, dict) else []
 
-    # Merge: hardware categories first, then static categories not already present
     result = list(hw_cats)
     existing_ids = {c['id'] for c in result}
     for cat in static.get('categories', []):
@@ -220,6 +251,11 @@ def api_update_scene(project_id, scene_id):
             scene[field] = body[field]
     project['updated_at'] = _now()
     _write_json(path, project)
+
+    global _active_project_id
+    if project_id == _active_project_id:
+        _reload_engine(project)
+
     return jsonify(scene)
 
 
@@ -248,8 +284,76 @@ def api_hw_relay_set(channel, action):
     if channel not in (1, 2, 3, 4) or action not in ('on', 'off'):
         return jsonify({'error': 'Invalid channel or action'}), 400
     data, status = _hw_post(f'/hardware/relay_board/{action}', {'channel': channel})
+    if status == 200 and isinstance(data.get('state'), dict):
+        socketio.emit('relay_state', data['state'])
     return jsonify(data), status
 
 
+# ── Engine ─────────────────────────────────────────────────────────────────
+
+@app.route('/engine/hardware_event', methods=['POST'])
+def api_engine_hardware_event():
+    body = request.json or {}
+    device_type = body.get('device_type')
+    event       = body.get('event')
+    value       = body.get('value')
+    if not device_type or not event:
+        return jsonify({'error': 'device_type and event required'}), 400
+    results = engine.process_hardware_event(device_type, event, value)
+    if event == 'delta' and isinstance(value, dict):
+        eid       = value.get('encoder_id', 1)
+        delta_val = value.get('delta', 0)
+        key = f'{device_type}_{eid}'
+        _encoder_positions[key] = _encoder_positions.get(key, 0) + delta_val
+        socketio.emit('encoder_state', {
+            'device_type': device_type,
+            'encoder_id':  eid,
+            'position':    _encoder_positions[key],
+            'delta':       delta_val,
+        })
+    return jsonify({'results': results})
+
+
+@app.route('/engine/activate', methods=['POST'])
+def api_engine_activate():
+    global _active_project_id
+    body = request.json or {}
+    pid = body.get('project_id')
+    if not pid:
+        return jsonify({'error': 'project_id required'}), 400
+    path = _project_path(pid)
+    if not os.path.exists(path):
+        return jsonify({'error': 'Project not found'}), 404
+    _active_project_id = pid
+    project = _read_json(path)
+    _reload_engine(project)
+    return jsonify({'ok': True, 'project_id': pid})
+
+
+@app.route('/engine/trigger', methods=['POST'])
+def api_engine_trigger():
+    body = request.json or {}
+    node_id = body.get('node_id')
+    value   = body.get('value', True)
+    if not node_id:
+        return jsonify({'error': 'node_id required'}), 400
+    result = engine.trigger_node(node_id, value)
+    if result is None:
+        return jsonify({'error': 'Node not found or no executor'}), 404
+    return jsonify({'result': result})
+
+
+@app.route('/engine/event', methods=['POST'])
+def api_engine_event():
+    body = request.json or {}
+    node_id = body.get('node_id')
+    handle  = body.get('handle')
+    value   = body.get('value')
+    if not node_id or not handle:
+        return jsonify({'error': 'node_id and handle required'}), 400
+    results = engine.process_event(node_id, handle, value)
+    return jsonify({'results': results})
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)

@@ -1,5 +1,55 @@
+import { useState, useEffect } from 'react'
 import { Handle, Position } from '@xyflow/react'
+import { socket } from '../socket'
 import './ComponentNode.css'
+
+function EncoderStatus({ encoderId }) {
+  const [pos, setPos]     = useState(null)
+  const [delta, setDelta] = useState(0)
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.encoder_id === encoderId) {
+        setPos(s.position)
+        setDelta(s.delta)
+      }
+    }
+    socket.on('encoder_state', onState)
+    return () => socket.off('encoder_state', onState)
+  }, [encoderId])
+
+  if (pos === null) return null
+  return (
+    <div className="cn-encoder-status">
+      <span className="cn-encoder-arrow">{delta > 0 ? '▲' : '▼'}</span>
+      <span className="cn-encoder-pos">{pos}</span>
+    </div>
+  )
+}
+
+function RelayStatus({ channel }) {
+  const ch = String(channel)
+  const [on, setOn] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/hardware/relay')
+      .then(r => r.json())
+      .then(s => { if (ch in s) setOn(s[ch]) })
+      .catch(() => {})
+
+    function onState(s) { if (ch in s) setOn(s[ch]) }
+    socket.on('relay_state', onState)
+    return () => socket.off('relay_state', onState)
+  }, [ch])
+
+  if (on === null) return null
+  return (
+    <div className={`cn-relay-status ${on ? 'on' : 'off'}`}>
+      <span className="cn-relay-dot" />
+      {on ? 'ON' : 'OFF'}
+    </div>
+  )
+}
 
 export default function ComponentNode({ data, selected }) {
   const inputs  = data.inputHandles  || []
@@ -19,6 +69,13 @@ export default function ComponentNode({ data, selected }) {
           <span className="cn-badge">{displayValue}</span>
         )}
       </div>
+
+      {data.componentType === 'relay_channel' && (
+        <RelayStatus channel={data.params?.channel ?? 1} />
+      )}
+      {data.componentType === 'ky040_encoder' && (
+        <EncoderStatus encoderId={data.params?.encoder_id ?? 1} />
+      )}
 
       {inputs.length > 0 && (
         <div className="cn-handles cn-inputs">

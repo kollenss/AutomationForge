@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import sys
+import urllib.request as _req
 from pathlib import Path
 from flask import Flask, jsonify, request
 
@@ -11,6 +12,18 @@ sys.path.insert(0, str(SHARED_DIR))
 
 app = Flask(__name__)
 _devices = {}  # type -> {'manifest', 'device', 'error', 'mod'}
+
+ENGINE_EVENT_URL = 'http://localhost:5000/engine/hardware_event'
+
+
+def _post_engine(device_type, event, value):
+    body = json.dumps({'device_type': device_type, 'event': event, 'value': value}).encode()
+    req = _req.Request(ENGINE_EVENT_URL, data=body,
+                       headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        _req.urlopen(req, timeout=2)
+    except Exception:
+        pass  # engine might not be running yet
 
 CATEGORY_META = {
     'input':  {'label': 'Input',  'color': '#22c55e'},
@@ -46,6 +59,11 @@ def _load_modules():
             device = mod.Device()
             _devices[hw_type] = {'manifest': manifest, 'device': device, 'error': None, 'mod': mod}
             print(f'[HW] loaded: {hw_type}')
+            if hasattr(device, 'set_event_callback'):
+                device.set_event_callback(
+                    lambda event, value, t=hw_type: _post_engine(t, event, value)
+                )
+                print(f'[HW] event callback registered: {hw_type}')
         except Exception as e:
             _devices[hw_type] = {'manifest': manifest, 'device': None, 'error': str(e), 'mod': mod}
             print(f'[HW] {hw_type} unavailable: {e}')

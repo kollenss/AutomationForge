@@ -26,7 +26,10 @@ def get_components():
              'default': 1, 'min': 1, 'max': n},
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid'},
         ],
-        'inputs': [{'key': 'trigger', 'label': 'Trigger'}],
+        'inputs': [
+            {'key': 'trigger_on',  'label': 'Trigger ON'},
+            {'key': 'trigger_off', 'label': 'Trigger OFF'},
+        ],
         'outputs': [{'key': 'state', 'label': 'State'}],
     }]
 

@@ -28,6 +28,8 @@ Målet är att en "game designer" utan djup kodkunskap ska kunna:
 | Som designer vill jag se live-status på reläkortet | ✅ |
 | Som designer vill jag slå på/av enskilda reläkanaler | ✅ |
 | Som designer vill jag att komponentbiblioteket speglar ansluten hårdvara | ✅ |
+| Som designer vill jag att kortens status uppdateras i realtid utan polling | ✅ |
+| Som designer vill jag att canvasen exekveras av en server-side engine | ✅ |
 
 ---
 
@@ -37,25 +39,28 @@ Målet är att en "game designer" utan djup kodkunskap ska kunna:
 AutomationForge/
 ├── modules/                      Hårdvarumoduler (en fil per enhet)
 │   ├── hardware_service.py       Flask REST API (port 5101) — äger all hårdvara
-│   ├── relay_trigger.py          USB Relay Board (MANIFEST + Device + get_components)
+│   ├── relay_trigger.py          USB Relay Board (4 kanaler, trigger_on/trigger_off)
+│   ├── rotary_encoder.py         KY-040 encoder(s) — interrupt-driven, delta-events
+│   ├── encoder.py                RotaryEncoder-klass (återanvänds av rotary_encoder.py)
 │   └── ...                       Framtida moduler (RFID, DFPlayer, etc.)
 │
 └── management/
-    ├── app.py                    Flask REST API (port 5000)
+    ├── app.py                    Flask + Socket.IO (port 5000)
+    ├── engine.py                 GameEngine — server-side grafexekverare
     ├── component_library.json    Statiska Logic-komponenter
     ├── data/
     │   └── projects/             En JSON-fil per projekt (UUID.json)
     ├── static/                   Byggd React-app (serveras av Flask)
     └── frontend/                 React-källkod (byggs med Vite)
         └── src/
-            ├── App.jsx
+            ├── socket.js         Socket.IO singleton (delar anslutning i hela appen)
             ├── api.js
             ├── pages/
             │   ├── ProjectsPage.jsx
             │   └── SceneEditorPage.jsx
             └── components/
                 ├── ComponentLibrary.jsx
-                ├── ComponentNode.jsx
+                ├── ComponentNode.jsx   (RelayStatus + EncoderStatus live på kortet)
                 ├── NodeModal.jsx
                 └── NodeModal.css
 ```
@@ -89,12 +94,25 @@ MANIFEST = {
 
 def get_components():
     """Returnerar komponentdefinitioner för GameForge-biblioteket."""
-    n = MANIFEST['channels']
-    return [{ 'type': 'relay_channel', ..., 'min': 1, 'max': n }]
+    return [{ 'type': 'relay_channel', ... }]
 
 class Device:
-    def get_state(self): ...     # → dict
-    def execute(self, cmd, **kwargs): ...  # → dict
+    def get_state(self): ...                    # → dict
+    def execute(self, cmd, **kwargs): ...       # → dict
+
+    # Valfritt — för input-moduler som genererar events:
+    def set_event_callback(self, fn): ...       # fn(event, value) anropas vid förändring
+```
+
+**Input-moduler** (KY-040, RFID etc.) implementerar `set_event_callback`. hardware_service anropar denna med en funktion som POSTar till GameForge:
+
+```python
+# hardware_service.py sätter automatiskt callback vid load:
+device.set_event_callback(
+    lambda event, value, t=hw_type: _post_engine(t, event, value)
+)
+# → POST http://localhost:5000/engine/hardware_event
+#   { device_type, event, value }
 ```
 
 ---
@@ -192,29 +210,39 @@ POST /api/hardware/relay/:ch/off       → slå av kanal
 
 ---
 
-## Live-testning per komponenttyp
+## Live-status på canvas-kort
+
+Komponenter visar live-status direkt på canvas-kortet via Socket.IO — **ingen polling**.
+
+| Komponenttyp | Socket-event | Vad visas |
+|---|---|---|
+| `relay_channel` | `relay_state` | Grön/grå prick + ON/OFF |
+| `ky040_encoder` | `encoder_state` | Position-räknare + riktningspil |
+
+**Relay-status** uppdateras vid varje kanaländring (oavsett källa — modal-knappar, engine-event eller direkt API).
+
+**Encoder-status** filtreras per `encoder_id` — två kort med olika ID visar egna räknare.
+
+## Live-testning i NodeModal
 
 `NodeModal.jsx` har ett `LIVE_COMPONENTS`-objekt som mappar komponenttyp → React-komponent:
 
 ```js
 const LIVE_COMPONENTS = {
   relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
-  // rfid_rc522: ({ params }) => <RfidLive />,   ← kommande
 }
 ```
 
 ### `RelayLive` (implementerad)
 
-- Pollar `/api/hardware/relay` var 2:e sekund
-- Visar ON/OFF-status per kanal med färgad dot
-- ON/OFF-knappar — disabled när redan i det läget
-- Mountas om med ny key när kanal ändras (säkerställer korrekt polling)
+- Hämtar initial state via `GET /api/hardware/relay` vid mount
+- Uppdateras via `relay_state` socket-event (ingen polling)
+- ON/OFF-knappar — state uppdateras via socket efter toggle
 
 Lägg till ny live-sektion:
 1. Skriv React-komponent i `NodeModal.jsx`
-2. Lägg till Flask-proxy i `app.py` → hardware_service
-3. Implementera `Device.execute()` i modulen
-4. Registrera i `LIVE_COMPONENTS`
+2. Prenumerera på relevant socket-event (eller lägg till nytt i `app.py`)
+3. Registrera i `LIVE_COMPONENTS`
 
 ---
 
@@ -244,30 +272,127 @@ Lägg till ny live-sektion:
 ## Build & Deploy
 
 ```bash
-# Bygga frontend (på Pi via SSH):
+# Bygga frontend (på Pi via SSH — kör INTE npm på Samba-share, ger EPERM):
 cd /home/pi/management/frontend && npm run build
+# Output hamnar i ../static/ — efter build:
+sudo systemctl restart gameforge
 
-# Starta i rätt ordning:
-nohup python3 /home/pi/modules/hardware_service.py > /tmp/hardware_service.log 2>&1 &
-nohup python3 /home/pi/management/app.py > /tmp/gameforge.log 2>&1 &
+# Tjänster hanteras av systemd (autostart vid boot):
+sudo systemctl start|stop|restart pigpiod
+sudo systemctl start|stop|restart hardware-service
+sudo systemctl start|stop|restart gameforge
+
+# Startordning: pigpiod → hardware-service → gameforge (hanteras av Requires=)
 ```
+
+---
+
+---
+
+## GameEngine — Implementerad arkitektur
+
+GameForge-frontend är **enbart en konfigurator**. All spellogik exekveras server-sida av `management/engine.py`.
+
+### Princip
+
+Canvas-grafen definierar kopplingar mellan noder. GameEngine håller grafen i minnet och exekverar den i realtid när events inkommer från hårdvaran.
+
+```
+Fysisk input (rotary dialer vrids)
+  → hardware_service detekterar (GPIO-interrupt, ~0 ms)
+  → POST /engine/hardware_event  →  GameEngine (localhost, 1–3 ms)
+  → Engine traverserar grafen: rotary.out → relay.trigger_on
+  → POST /hardware/relay_board/on  →  hardware_service (localhost, 1–3 ms)
+  → Relä slår om
+  ─────────────────────────────────────────
+  Total latens: 3–8 ms  →  känns som direktkoppling
+```
+
+Frontend uppdateras via Socket.IO **efter** att fysisk output redan skett — den är inte i den tidskritiska kedjan.
+
+### Engine-endpoints (i `management/app.py`)
+
+```
+POST /engine/hardware_event   Tar emot { device_type, event, value } från hardware_service
+POST /engine/event            Skjuter event från specifik nod: { node_id, handle, value }
+POST /engine/trigger          Triggar nod direkt (utan graftraversering): { node_id, value }
+POST /engine/activate         Sätt aktivt projekt: { project_id }
+```
+
+Engine laddas automatiskt med senast uppdaterade projekt vid start. Om en scenes data sparas och scenen tillhör aktivt projekt laddas grafen om automatiskt.
+
+### Eventflöde
+
+```
+hardware_service  ─POST /engine/hardware_event──►  GameEngine
+                  ◄─POST /hardware/:type/:cmd────   GameEngine
+                                                     │
+                                             socketio.emit()
+                                                     │
+                                                    ▼
+                                             Frontend (UI-display)
+```
+
+**Payload hardware_service → engine:**
+```json
+{ "device_type": "ky040_encoder", "event": "delta", "value": {"encoder_id": 1, "delta": 1} }
+```
+
+**Engine-respons:** hittar canvas-noder med matchande `componentType` (och matchande params vid dict-value), traverserar edges, anropar executor för varje mål-nod.
+
+### Socket.IO-events (engine → frontend)
+
+| Event | Payload | Trigger |
+|-------|---------|---------|
+| `relay_state` | `{"1": bool, "2": bool, "3": bool, "4": bool}` | Varje relay-kommando |
+| `encoder_state` | `{device_type, encoder_id, position, delta}` | Varje encoder-steg |
+
+### Executors (`engine.py`)
+
+```python
+_EXECUTORS = {
+    'relay_channel': _exec_relay,  # Stöder trigger_on / trigger_off som separata handles
+}
+```
+
+Lägg till ny executor för ny komponenttyp:
+1. Skriv `_exec_<type>(params, handle, value, emit)` i `engine.py`
+2. Registrera i `_EXECUTORS`
+
+### Latenskritisk väg
+
+| Faktor | Påverkan |
+|--------|----------|
+| GPIO-interrupt i hårdvarumodul | **Avgörande** — polling lägger till intervalltid |
+| HTTP localhost (2 anrop) | 2–6 ms totalt — inte ett problem |
+| Python-overhead i engine | < 1 ms för enkel graftraversering |
+| `async_mode='threading'` i socketio | Hanterar concurrent requests korrekt |
 
 ---
 
 ## Nästa steg (backlog)
 
-**Hårdvarumoduler att konvertera till ny service-arkitektur:**
-| Modul | Live-test i GameForge |
-|-------|----------------------|
-| RFID RC522 | Visa senast läst kort-UID |
-| KY-040 Encoder | Visa aktuellt värde |
-| MAX7219 Display | Skicka text/nummer |
-| DFPlayer Mini | Spela spår, volymkontroll |
-| NeoPixel Ring | Välj färg, tänd/släck |
-| Servo SG90 | Sätt vinkel |
+### Implementerat ✅
 
-**Platform:**
-- **Export till Python-kod** — generera floor-script från canvas-konfiguration
-- **Scene-dependencies** — definiera vad som triggar vad (utanför canvasen)
-- **Systemd-services** — autostart av hardware_service + GameForge vid Pi-boot
-- **Komponentbibliotek från manifest** — `ComponentLibrary`-panelen visar connected/disconnected per komponent
+- [x] **`engine.py`** — server-sida grafexekverare i GameForge
+- [x] **Socket.IO** (`flask-socketio`) — push till frontend utan polling
+- [x] **Relay live-status** — direkt på canvas-kortet via `relay_state` socket-event
+- [x] **Interrupt-driven input** — KY-040 encoder med GPIO-interrupt + callback
+- [x] **KY-040 encoder-modul** — `rotary_encoder.py`, multi-encoder-stöd via ENCODERS-lista
+- [x] **Encoder live-status** — position + riktningspil på canvas-kortet via `encoder_state`
+- [x] **Systemd-services** — pigpiod + hardware-service + gameforge autostart vid boot
+
+### Hårdvarumoduler att lägga till
+
+| Modul | Live-test i GameForge | Engine-event |
+|-------|----------------------|-------------|
+| RFID RC522 | Visa senast läst kort-UID | `{device_type: rfid, event: card_read, value: uid}` |
+| MAX7219 Display | Skicka text/nummer | Output-only, inget event |
+| DFPlayer Mini | Spela spår, volymkontroll | Output-only |
+| NeoPixel Ring | Välj färg, tänd/släck | Output-only |
+| Servo SG90 | Sätt vinkel | Output-only |
+
+### Platform
+
+- **Scene-dependencies** — definiera vad som triggar scenbyte (utanför canvas-grafen)
+- **Komponentbibliotek: disconnected-indikator** — visa om modul inte är ansluten

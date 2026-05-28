@@ -1,31 +1,31 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { socket } from '../socket'
 import './NodeModal.css'
 
 function RelayLive({ channel }) {
-  const ch = Number(channel) >= 1 ? Number(channel) : 1
+  const ch  = Number(channel) >= 1 ? Number(channel) : 1
+  const chS = String(ch)
   const [state, setState] = useState(null)
   const [busy, setBusy]   = useState(false)
   const [err, setErr]     = useState('')
 
-  const fetchState = useCallback(() => {
-    api.getRelayState()
-      .then(s => setState(s[String(ch)]))
-      .catch(() => setErr('Board not connected'))
-  }, [ch])
-
   useEffect(() => {
-    fetchState()
-    const id = setInterval(fetchState, 2000)
-    return () => clearInterval(id)
-  }, [fetchState])
+    api.getRelayState()
+      .then(s => setState(s[chS]))
+      .catch(() => setErr('Board not connected'))
+
+    function onState(s) { if (chS in s) { setState(s[chS]); setErr('') } }
+    socket.on('relay_state', onState)
+    return () => socket.off('relay_state', onState)
+  }, [ch, chS])
 
   async function toggle(action) {
     setBusy(true)
     setErr('')
     try {
-      const res = await api.setRelay(ch, action)
-      setState(res.state[String(ch)])
+      await api.setRelay(ch, action)
+      // State update arrives via socket event
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -140,6 +140,10 @@ export default function NodeModal({ node, library, onChange, onClose, onDelete }
         )}
 
         {LiveSection && <LiveSection key={node.data.params?.channel} params={node.data.params} />}
+
+        <div className="nm-node-id" title="Node ID" onClick={() => navigator.clipboard?.writeText(node.id)}>
+          {node.id}
+        </div>
 
       </div>
     </div>

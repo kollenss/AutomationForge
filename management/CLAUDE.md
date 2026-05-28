@@ -50,6 +50,11 @@ journalctl -u pigpiod -n 20 --no-pager
 tail -f /tmp/terminal_web.log
 ```
 
+## Språk
+
+All GUI-text ska vara på **engelska** — knappar, labels, statusar, felmeddelanden, placeholders etc.
+Kod, kommentarer och konversation med användaren är på svenska.
+
 ## Stack
 
 - **pigpiod:** systemd-daemon — GPIO-åtkomst för pigpio (KY-040 encoder etc.)

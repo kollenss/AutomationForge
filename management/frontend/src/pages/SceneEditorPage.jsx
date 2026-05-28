@@ -147,8 +147,8 @@ function EditorInner({ project, scene, library }) {
         <div className="se-header-right">
           {!saved && <span className="se-unsaved">Unsaved changes</span>}
           <button className="se-sync-btn" onClick={syncNodes}
-            title="Uppdatera alla noder till senaste komponentdefinition">
-            ↺ Sync noder
+            title="Update all nodes to the latest component definition">
+            ↺ Sync nodes
           </button>
           <button className="primary" onClick={save} disabled={saving || saved}>
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

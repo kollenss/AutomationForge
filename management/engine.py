@@ -167,6 +167,7 @@ def _combo_reset(state, keep_enabled=False):
     state['click_time']     = 0.0
     state['last_same_time'] = 0.0
     state['last_step_time'] = 0.0
+    state['count_frozen']   = False
     state['reset_time']     = time.time()   # lockout window starts now
     state['locked']         = [0, 0, 0, 0]
     if not keep_enabled:
@@ -188,6 +189,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'last_step_time': 0.0,
         'reset_time':     0.0,
         'locked':         [0, 0, 0, 0],
+        'count_frozen':   False,
     })
 
     # ── enable input ────────────────────────────────────────────────────────
@@ -242,6 +244,13 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         state['pending_dir']    = None
         state['pending_count']  = 0
         state['last_same_time'] = now
+
+        # If a reversal was being detected, freeze the count so encoder wobble
+        # (same-direction bounce during direction change) can't shift the value.
+        if state['count_frozen']:
+            state['count_frozen'] = False
+            _log(node_id, 'UNFREEZE', phase=phase, count=state['count'])
+            return
 
         # Grace window after hitting target — absorbs encoder burst noise
         if now - state['click_time'] < _CLICK_GRACE_S:
@@ -327,6 +336,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
             state['click_time']      = 0.0
             state['last_same_time']  = 0.0
             state['last_step_time']  = 0.0
+            state['count_frozen']   = False
             state['reset_time']      = now   # lockout: drain burst after commit
             _log(node_id, 'LOCK', locked=locked_val, new_phase=state['phase'],
                  correct=(locked_val == code[phase]))
@@ -362,6 +372,8 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
                 state['pending_dir']   = direction
                 state['pending_count'] = 1
 
+            state['count_frozen'] = True   # freeze: prevent wobble from shifting count
+
             _log(node_id, 'PENDING', phase=phase, count=state['count'],
                  new_dir=direction, pcount=state['pending_count'],
                  need=_CONFIRM_STEPS)
@@ -393,18 +405,24 @@ def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
         _hw_post('/hardware/max7219/clear', {})
         return
 
+    if h == 'text':
+        # Send full text string via /text endpoint → _show_text() writes all 8 digits
+        text = str(value) if not isinstance(value, bool) else ('ERR' if value else '   ')
+        _hw_post('/hardware/max7219/text', {'text': text})
+        return
+
+    # Numeric / value mode: render as zero-padded number, show on a pair
+    pair      = int(params.get('pair',      0))
+    intensity = int(params.get('intensity', 8))
     if h in ('value', 'current_value'):
         try:
             text = str(int(value)).zfill(digits)
         except (ValueError, TypeError):
             text = str(value)
-    elif h == 'text':
-        text = str(value) if not isinstance(value, bool) else ('ERR' if value else '   ')
     else:
         text = str(value)
 
-    intensity = int(params.get('intensity', 8))
-    _hw_post('/hardware/max7219/show', {'text': text, 'digits': digits, 'intensity': intensity})
+    _hw_post('/hardware/max7219/show', {'text': text, 'pair': pair, 'intensity': intensity})
 
 
 # ---------------------------------------------------------------------------

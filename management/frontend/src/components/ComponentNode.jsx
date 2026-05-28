@@ -67,10 +67,10 @@ function ComboLockStatus({ nodeId }) {
   }, [nodeId])
 
   const cfg = {
-    idle:     { label: 'INAKTIV',        cls: '' },
-    active:   { label: `FAS ${phase + 1}/4`, cls: 'active' },
-    failed:   { label: 'FEL',            cls: 'failed' },
-    unlocked: { label: 'UPPLÅST',        cls: 'unlocked' },
+    idle:     { label: 'INACTIVE',          cls: '' },
+    active:   { label: `PHASE ${phase + 1}/4`, cls: 'active' },
+    failed:   { label: 'FAILED',           cls: 'failed' },
+    unlocked: { label: 'UNLOCKED',         cls: 'unlocked' },
   }[status]
 
   return (

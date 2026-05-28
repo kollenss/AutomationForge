@@ -20,11 +20,12 @@ def _hw_post(path, data=None):
 
 
 # ---------------------------------------------------------------------------
-# Executors — one per output component type.
-# Signature: (params, handle, value, emit) → None
-# Call emit('event_name', payload) to push state to frontend.
+# Executors — one per component type.
+# Signature: (node_id, params, handle, value, emit, propagate) → None
+#   emit(event, payload)     — push socket event to frontend
+#   propagate(handle, value) — fire this node's output handle downstream
 
-def _exec_relay(params, handle, value, emit):
+def _exec_relay(node_id, params, handle, value, emit, propagate):
     channel = int(params.get('channel', 1))
     if handle == 'trigger_on':
         action = 'on'
@@ -37,8 +38,20 @@ def _exec_relay(params, handle, value, emit):
         emit('relay_state', resp['state'])
 
 
+def _exec_rfid_auth(node_id, params, handle, value, emit, propagate):
+    if handle and handle.lower() != 'card_read':
+        return
+    valid_uids = {u.strip().upper() for u in params.get('valid_uids', '').split(',') if u.strip()}
+    uid = str(value).strip().upper()
+    if uid in valid_uids:
+        propagate('authorized', uid)
+    else:
+        propagate('denied', uid)
+
+
 _EXECUTORS = {
     'relay_channel': _exec_relay,
+    'rfid_auth':     _exec_rfid_auth,
 }
 
 
@@ -47,9 +60,10 @@ _EXECUTORS = {
 class GameEngine:
     def __init__(self):
         self._lock = threading.Lock()
-        self._nodes = {}   # node_id → node dict
+        self._nodes = {}        # node_id → node dict
         self._edges = []
-        self._emit = None  # set to socketio.emit by app.py
+        self._emit = None       # set to socketio.emit by app.py
+        self._node_state = {}   # node_id → state dict (for stateful behavior nodes)
 
     def set_emit(self, fn):
         self._emit = fn
@@ -63,7 +77,15 @@ class GameEngine:
         with self._lock:
             self._nodes = nodes
             self._edges = list(edges)
+            self._node_state = {}
         return len(nodes), len(edges)
+
+    def get_node_state(self, node_id, defaults=None):
+        """Return (and lazily initialise) per-node state dict for stateful behaviors."""
+        with self._lock:
+            if node_id not in self._node_state:
+                self._node_state[node_id] = dict(defaults or {})
+            return self._node_state[node_id]
 
     def trigger_node(self, node_id, value):
         with self._lock:
@@ -75,7 +97,8 @@ class GameEngine:
         if not executor:
             return None
         params = node['data'].get('params', {})
-        executor(params, None, value, self._emit)
+        propagate = lambda h, v: self.process_event(node_id, h, v)
+        executor(node_id, params, None, value, self._emit, propagate)
         return {'node_id': node_id, 'type': comp_type}
 
     def process_hardware_event(self, device_type, event, value):
@@ -126,7 +149,9 @@ class GameEngine:
             if not executor:
                 continue
             params = node['data'].get('params', {})
-            executor(params, target_handle, value, self._emit)
+            # nid=node['id'] captures the correct id per iteration (avoids closure issue)
+            propagate = lambda h, v, nid=node['id']: self.process_event(nid, h, v)
+            executor(node['id'], params, target_handle, value, self._emit, propagate)
             results.append({'node_id': node['id'], 'type': comp_type})
 
         return results

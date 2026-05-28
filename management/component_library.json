@@ -6,17 +6,44 @@
       "color": "#8b5cf6",
       "components": [
         {
+          "type": "rfid_auth",
+          "label": "RFID Auth",
+          "subtitle": "Card access gate",
+          "color": "#6366f1",
+          "icon": "🔑",
+          "display_param": "name",
+          "params": [
+            {
+              "key": "valid_uids",
+              "label": "Valid UIDs (comma-separated)",
+              "type": "text",
+              "default": ""
+            },
+            {
+              "key": "name",
+              "label": "Label",
+              "type": "text",
+              "default": "RFID Gate"
+            }
+          ],
+          "inputs":  [{"key": "card_read",   "label": "Card Read"}],
+          "outputs": [
+            {"key": "authorized", "label": "Authorized"},
+            {"key": "denied",     "label": "Denied"}
+          ]
+        },
+        {
           "type": "password_lock",
           "label": "Password Lock",
           "subtitle": "Text input gate",
           "color": "#8b5cf6",
           "icon": "🔒",
           "params": [
-            {"key": "password", "label": "Password", "type": "password", "default": ""},
-            {"key": "max_attempts", "label": "Max Attempts", "type": "number", "default": 3}
+            {"key": "password",     "label": "Password",     "type": "password", "default": ""},
+            {"key": "max_attempts", "label": "Max Attempts", "type": "number",   "default": 3}
           ],
-          "inputs": [{"key": "attempt", "label": "Attempt"}],
-          "outputs": [{"key": "unlocked", "label": "Unlocked"}, {"key": "locked_out", "label": "Locked Out"}]
+          "inputs":  [{"key": "attempt",    "label": "Attempt"}],
+          "outputs": [{"key": "unlocked",   "label": "Unlocked"}, {"key": "locked_out", "label": "Locked Out"}]
         },
         {
           "type": "sequence",
@@ -25,10 +52,10 @@
           "color": "#8b5cf6",
           "icon": "🔗",
           "params": [
-            {"key": "length", "label": "Steps", "type": "number", "default": 4},
-            {"key": "reset_on_fail", "label": "Reset on fail", "type": "boolean", "default": true}
+            {"key": "length",        "label": "Steps",        "type": "number",  "default": 4},
+            {"key": "reset_on_fail", "label": "Reset on fail","type": "boolean", "default": true}
           ],
-          "inputs": [{"key": "step", "label": "Step Input"}],
+          "inputs":  [{"key": "step",     "label": "Step Input"}],
           "outputs": [{"key": "complete", "label": "Complete"}, {"key": "failed", "label": "Failed"}]
         },
         {
@@ -38,11 +65,11 @@
           "color": "#8b5cf6",
           "icon": "⏱",
           "params": [
-            {"key": "duration_s", "label": "Duration (s)", "type": "number", "default": 60},
-            {"key": "auto_start", "label": "Auto Start", "type": "boolean", "default": false}
+            {"key": "duration_s", "label": "Duration (s)", "type": "number",  "default": 60},
+            {"key": "auto_start", "label": "Auto Start",  "type": "boolean", "default": false}
           ],
-          "inputs": [{"key": "start", "label": "Start"}, {"key": "reset", "label": "Reset"}],
-          "outputs": [{"key": "tick", "label": "Tick"}, {"key": "expired", "label": "Expired"}]
+          "inputs":  [{"key": "start", "label": "Start"}, {"key": "reset", "label": "Reset"}],
+          "outputs": [{"key": "tick",  "label": "Tick"},  {"key": "expired", "label": "Expired"}]
         },
         {
           "type": "note",
@@ -53,7 +80,7 @@
           "params": [
             {"key": "text", "label": "Text", "type": "text", "default": ""}
           ],
-          "inputs": [],
+          "inputs":  [],
           "outputs": []
         }
       ]

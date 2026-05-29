@@ -300,17 +300,24 @@ def api_engine_hardware_event():
     if not device_type or not event:
         return jsonify({'error': 'device_type and event required'}), 400
     results = engine.process_hardware_event(device_type, event, value)
-    if event == 'delta' and isinstance(value, dict):
-        eid       = value.get('encoder_id', 1)
-        delta_val = value.get('delta', 0)
-        key = f'{device_type}_{eid}'
-        _encoder_positions[key] = _encoder_positions.get(key, 0) + delta_val
-        socketio.emit('encoder_state', {
-            'device_type': device_type,
-            'encoder_id':  eid,
-            'position':    _encoder_positions[key],
-            'delta':       delta_val,
-        })
+    if isinstance(value, dict):
+        eid = value.get('encoder_id', 1)
+        if event == 'delta':
+            delta_val = value.get('delta', 0)
+            key = f'{device_type}_{eid}'
+            _encoder_positions[key] = _encoder_positions.get(key, 0) + delta_val
+            socketio.emit('encoder_state', {
+                'device_type': device_type,
+                'encoder_id':  eid,
+                'position':    _encoder_positions[key],
+                'delta':       delta_val,
+            })
+        elif event == 'click':
+            socketio.emit('encoder_state', {
+                'device_type': device_type,
+                'encoder_id':  eid,
+                'click':       True,
+            })
     return jsonify({'results': results})
 
 

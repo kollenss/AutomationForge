@@ -41,8 +41,8 @@ def get_components():
             {'key': 'name',   'label': 'Label',         'type': 'text',   'default': 'speaker'},
         ],
         'inputs': [
-            {'key': 'trigger', 'label': 'Play'},
-            {'key': 'stop',    'label': 'Stop'},
+            {'key': 'trigger', 'label': 'Play Track', 'description': 'Plays the configured track at the configured volume'},
+            {'key': 'stop',    'label': 'Stop', 'description': 'Stops playback immediately'},
         ],
         'outputs': [],
     }]

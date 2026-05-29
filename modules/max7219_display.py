@@ -68,9 +68,9 @@ def get_components():
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'display'},
         ],
         'inputs': [
-            {'key': 'value', 'label': 'Show Number'},
-            {'key': 'text',  'label': 'Show Text (8 chars)'},
-            {'key': 'clear', 'label': 'Clear'},
+            {'key': 'value', 'label': 'Show Number', 'description': 'Displays a number on the configured digit pair (0-99)'},
+            {'key': 'text',  'label': 'Show Text (8 chars)', 'description': 'Displays a raw 8-character string across the full display'},
+            {'key': 'clear', 'label': 'Clear', 'description': 'Blanks all digits on this display'},
         ],
         'outputs': [],
     }]

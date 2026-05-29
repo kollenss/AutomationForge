@@ -115,11 +115,9 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
 # wrong locks lead to a failed combination after all 4 phases are done.
 #
 # Noise rejection (ported from vault.py):
-#   CONFIRM_STEPS  — require N consecutive opposite steps before treating
-#                    as a real reversal (avoids single-tick mechanical noise)
 #   CLICK_GRACE_S  — ignore same-direction steps for 250 ms after hitting
 #                    target (absorbs encoder burst after the click)
-#   DEBOUNCE_S     — ignore opposite step if last same-dir step was < 15 ms
+#   DEBOUNCE_S     — ignore opposite step if last same-dir step was < 150 ms
 #                    ago (filters brief directional glitches)
 
 _EXPECTED_DIRS = ['left', 'right', 'left', 'right']
@@ -141,7 +139,6 @@ def _combo_display_str(state):
             out += '  '
     return out
 
-_CONFIRM_STEPS    = 2       # consecutive opposite steps to confirm reversal
 _CLICK_GRACE_S    = 0.25   # seconds to ignore ALL steps after target hit
 _DEBOUNCE_S       = 0.150  # seconds: ignore opp step if same-dir was this recent
                             # KY-040 generates ~9 spurious opp CLK edges per real step
@@ -161,17 +158,50 @@ def _combo_reset(state, keep_enabled=False):
     state['count']          = 0
     state['at_target']      = False
     state['last_direction'] = None
-    state['pending_dir']    = None
-    state['pending_count']  = 0
-    state['dir_confirmed']  = False
     state['click_time']     = 0.0
     state['last_same_time'] = 0.0
     state['last_step_time'] = 0.0
-    state['count_frozen']   = False
     state['reset_time']     = time.time()   # lockout window starts now
     state['locked']         = [0, 0, 0, 0]
     if not keep_enabled:
         state['enabled'] = False
+
+
+def _combo_lock_phase(node_id, state, phase, code, now, emit, propagate):
+    locked_val              = state['count']
+    state['locked'][phase]  = locked_val
+    state['phase']         += 1
+    state['count']          = 0
+    state['at_target']      = False
+    state['last_direction'] = None
+    state['click_time']     = 0.0
+    state['last_same_time'] = 0.0
+    state['last_step_time'] = 0.0
+    state['reset_time']     = now
+    _log(node_id, 'LOCK', locked=locked_val, new_phase=state['phase'],
+         correct=(locked_val == code[phase]))
+    propagate('display_8', _combo_display_str(state))
+
+    if state['phase'] >= 4:
+        if state['locked'] == code:
+            _log(node_id, 'UNLOCK')
+            if emit:
+                emit('combo_state', {'node_id': node_id, 'unlocked': True})
+            propagate('unlocked', True)
+            _combo_reset(state, keep_enabled=False)
+        else:
+            _log(node_id, 'FAIL', locked=str(state['locked']), code=str(code))
+            if emit:
+                emit('combo_state', {'node_id': node_id, 'failed': True})
+            propagate('failed', True)
+            _combo_reset(state, keep_enabled=True)
+    else:
+        if emit:
+            emit('combo_state', {
+                'node_id': node_id,
+                'phase':   state['phase'],
+                'count':   0,
+            })
 
 
 def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state):
@@ -181,15 +211,11 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         'count':          0,
         'at_target':      False,
         'last_direction': None,
-        'pending_dir':    None,
-        'pending_count':  0,
-        'dir_confirmed':  False,
         'click_time':     0.0,
         'last_same_time': 0.0,
         'last_step_time': 0.0,
         'reset_time':     0.0,
         'locked':         [0, 0, 0, 0],
-        'count_frozen':   False,
     })
 
     # ── enable input ────────────────────────────────────────────────────────
@@ -203,11 +229,10 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         propagate('display_8', '00      ')
         return
 
-    # ── delta input ─────────────────────────────────────────────────────────
-    if handle != 'delta' or not state['enabled']:
+    if not state['enabled']:
         return
 
-    # Parse code
+    # Parse code (needed by both test_code and delta)
     raw = params.get('code', '10,20,30,40')
     try:
         code = [max(0, min(99, int(x.strip()))) for x in raw.split(',')]
@@ -216,6 +241,21 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
     while len(code) < 4:
         code.append(1)
     code = code[:4]
+
+    # ── test_code input — same effect as a confirmed direction reversal ──────
+    if handle == 'test_code':
+        if state['last_direction'] is None:
+            return
+        now = time.time()
+        lockout_remaining = _RESET_LOCKOUT_S - (now - state.get('reset_time', 0.0))
+        if lockout_remaining > 0:
+            return
+        _combo_lock_phase(node_id, state, state['phase'], code, now, emit, propagate)
+        return
+
+    # ── delta input ─────────────────────────────────────────────────────────
+    if handle != 'delta':
+        return
 
     delta = int(value) if value else 0
     if delta == 0:
@@ -236,21 +276,7 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
 
     if direction == expected:
         # ── Correct direction ──────────────────────────────────────────────
-        # Cancel any pending reversal detection (was mechanical noise)
-        if state['dir_confirmed']:
-            _log(node_id, 'FALSE_ALARM', phase=phase, count=state['count'],
-                 back_to=direction)
-        state['dir_confirmed']  = False
-        state['pending_dir']    = None
-        state['pending_count']  = 0
         state['last_same_time'] = now
-
-        # If a reversal was being detected, freeze the count so encoder wobble
-        # (same-direction bounce during direction change) can't shift the value.
-        if state['count_frozen']:
-            state['count_frozen'] = False
-            _log(node_id, 'UNFREEZE', phase=phase, count=state['count'])
-            return
 
         # Grace window after hitting target — absorbs encoder burst noise
         if now - state['click_time'] < _CLICK_GRACE_S:
@@ -306,84 +332,21 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
         if state['last_direction'] is None:
             return
 
-        # Also block opposite steps during click grace — prevents spurious
-        # PENDING entries from encoder jitter right after the click sound
+        # Block opposite steps during click grace — filters encoder jitter
+        # right after the click sound fires
         if state['at_target'] and (now - state['click_time'] < _CLICK_GRACE_S):
             _log(node_id, 'GRACE_OPP', phase=phase, count=state['count'],
                  grace_ms=round((now - state['click_time']) * 1000))
             return
 
-        # Debounce: single spurious opposite tick within 15 ms → ignore
+        # Debounce: spurious opposite tick within 150 ms → ignore
         gap = now - state['last_same_time']
         if gap < _DEBOUNCE_S:
             _log(node_id, 'DEBOUNCE', phase=phase, count=state['count'],
                  gap_ms=round(gap * 1000))
             return
 
-        if state['dir_confirmed']:
-            # Reversal confirmed — lock whatever count we're on and advance.
-            # Locking at the wrong value means the final check will fail.
-            state['dir_confirmed']  = False
-            state['pending_dir']    = None
-            state['pending_count']  = 0
-
-            locked_val = state['count']
-            state['locked'][phase]   = locked_val
-            state['phase']          += 1
-            state['count']           = 0
-            state['at_target']       = False
-            state['last_direction']  = None  # fresh start for next phase
-            state['click_time']      = 0.0
-            state['last_same_time']  = 0.0
-            state['last_step_time']  = 0.0
-            state['count_frozen']   = False
-            state['reset_time']      = now   # lockout: drain burst after commit
-            _log(node_id, 'LOCK', locked=locked_val, new_phase=state['phase'],
-                 correct=(locked_val == code[phase]))
-            propagate('display_8', _combo_display_str(state))
-
-            if state['phase'] >= 4:
-                # All four digits locked — validate entire combination
-                if state['locked'] == code:
-                    _log(node_id, 'UNLOCK')
-                    if emit:
-                        emit('combo_state', {'node_id': node_id, 'unlocked': True})
-                    propagate('unlocked', True)
-                    _combo_reset(state, keep_enabled=False)
-                else:
-                    _log(node_id, 'FAIL', locked=str(state['locked']), code=str(code))
-                    if emit:
-                        emit('combo_state', {'node_id': node_id, 'failed': True})
-                    propagate('failed', True)
-                    _combo_reset(state, keep_enabled=True)
-            else:
-                if emit:
-                    emit('combo_state', {
-                        'node_id': node_id,
-                        'phase':   state['phase'],
-                        'count':   0,
-                    })
-
-        else:
-            # Accumulate opposite steps toward confirmation
-            if state['pending_dir'] == direction:
-                state['pending_count'] += 1
-            else:
-                state['pending_dir']   = direction
-                state['pending_count'] = 1
-
-            state['count_frozen'] = True   # freeze: prevent wobble from shifting count
-
-            _log(node_id, 'PENDING', phase=phase, count=state['count'],
-                 new_dir=direction, pcount=state['pending_count'],
-                 need=_CONFIRM_STEPS)
-
-            if state['pending_count'] >= _CONFIRM_STEPS:
-                state['dir_confirmed']  = True
-                state['pending_dir']    = None
-                state['pending_count']  = 0
-                _log(node_id, 'DETECTED', phase=phase, count=state['count'],
-                     new_dir=direction, note='waiting_for_commit')
+        _combo_lock_phase(node_id, state, phase, code, now, emit, propagate)
 
 
 def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):
@@ -395,6 +358,19 @@ def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):
     track  = max(1, min(255, int(params.get('track',  1))))
     volume = max(0, min(30,  int(params.get('volume', 20))))
     _hw_post('/hardware/dfplayer/play', {'track': track, 'volume': volume})
+
+
+def _exec_servo(node_id, params, handle, value, emit, propagate, get_state):
+    gpio_pin = int(params.get('gpio_pin', 12))
+    if handle == 'set_angle':
+        try:
+            angle = max(0.0, min(180.0, float(value)))
+        except (TypeError, ValueError):
+            return
+        _hw_post('/hardware/servo/set_angle', {'gpio_pin': gpio_pin, 'angle': angle})
+        propagate('done', angle)
+    elif handle == 'release':
+        _hw_post('/hardware/servo/release', {'gpio_pin': gpio_pin})
 
 
 def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
@@ -433,6 +409,7 @@ _EXECUTORS = {
     'combo_lock':    _exec_combo_lock,
     'dfplayer':      _exec_dfplayer,
     'max7219':       _exec_max7219,
+    'servo':         _exec_servo,
 }
 
 

@@ -27,10 +27,10 @@ def get_components():
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid'},
         ],
         'inputs': [
-            {'key': 'trigger_on',  'label': 'Trigger ON'},
-            {'key': 'trigger_off', 'label': 'Trigger OFF'},
+            {'key': 'trigger_on',  'label': 'Turn ON', 'description': 'Activates the relay channel, connecting the circuit'},
+            {'key': 'trigger_off', 'label': 'Turn OFF', 'description': 'Deactivates the relay channel, opening the circuit'},
         ],
-        'outputs': [{'key': 'state', 'label': 'State'}],
+        'outputs': [{'key': 'state', 'label': 'Current State (on/off)', 'description': 'Fires with the updated on/off state on every change'}],
     }]
 
 

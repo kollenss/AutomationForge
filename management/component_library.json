@@ -27,15 +27,16 @@
             }
           ],
           "inputs": [
-            {"key": "enable",       "label": "Enable"},
-            {"key": "delta",        "label": "Encoder Delta"}
+            {"key": "enable",    "label": "Activate",        "description": "Starts the lock — connect from an RFID Auth or other trigger"},
+            {"key": "delta",     "label": "Encoder Step",    "description": "Receives turn steps from a Rotary Encoder (+1 right, -1 left)"},
+            {"key": "test_code", "label": "Confirm (Click)", "description": "Locks the current digit and advances phase — same effect as reversing direction"}
           ],
           "outputs": [
-            {"key": "current_value", "label": "Display Value"},
-            {"key": "display_8",     "label": "8-Digit Display"},
-            {"key": "digit_locked",  "label": "Digit Locked"},
-            {"key": "unlocked",      "label": "Unlocked"},
-            {"key": "failed",        "label": "Failed"}
+            {"key": "current_value", "label": "Current Count",  "description": "The current dial count (0-99) for the active phase"},
+            {"key": "display_8",     "label": "8-Digit Text",   "description": "8-character string for a MAX7219 display — two digits per phase"},
+            {"key": "digit_locked",  "label": "On Target",      "description": "Fires when the dial count matches the target number for the current phase"},
+            {"key": "unlocked",      "label": "Code Correct",   "description": "Fires when all four locked digits match the configured code"},
+            {"key": "failed",        "label": "Code Wrong",     "description": "Fires when the locked digits do not match the configured code"}
           ]
         },
         {
@@ -59,10 +60,12 @@
               "default": "RFID Gate"
             }
           ],
-          "inputs":  [{"key": "card_read",   "label": "Card Read"}],
+          "inputs": [
+            {"key": "card_read", "label": "Card UID", "description": "Receives a card UID string — connect from an RFID Reader"}
+          ],
           "outputs": [
-            {"key": "authorized", "label": "Authorized"},
-            {"key": "denied",     "label": "Denied"}
+            {"key": "authorized", "label": "Card Accepted", "description": "Fires when the scanned UID is in the valid UIDs list"},
+            {"key": "denied",     "label": "Card Rejected", "description": "Fires when the scanned UID is not in the valid UIDs list"}
           ]
         },
         {
@@ -75,8 +78,13 @@
             {"key": "password",     "label": "Password",     "type": "password", "default": ""},
             {"key": "max_attempts", "label": "Max Attempts", "type": "number",   "default": 3}
           ],
-          "inputs":  [{"key": "attempt",    "label": "Attempt"}],
-          "outputs": [{"key": "unlocked",   "label": "Unlocked"}, {"key": "locked_out", "label": "Locked Out"}]
+          "inputs": [
+            {"key": "attempt", "label": "Password Input", "description": "Receives a password string to check against the configured password"}
+          ],
+          "outputs": [
+            {"key": "unlocked",   "label": "Password Correct",       "description": "Fires when the submitted password matches"},
+            {"key": "locked_out", "label": "Max Attempts Reached",   "description": "Fires when the maximum number of failed attempts is exceeded"}
+          ]
         },
         {
           "type": "sequence",
@@ -88,8 +96,13 @@
             {"key": "length",        "label": "Steps",        "type": "number",  "default": 4},
             {"key": "reset_on_fail", "label": "Reset on fail","type": "boolean", "default": true}
           ],
-          "inputs":  [{"key": "step",     "label": "Step Input"}],
-          "outputs": [{"key": "complete", "label": "Complete"}, {"key": "failed", "label": "Failed"}]
+          "inputs": [
+            {"key": "step", "label": "Step Trigger", "description": "Each trigger is recorded as the next step in the sequence"}
+          ],
+          "outputs": [
+            {"key": "complete", "label": "Sequence Complete", "description": "Fires when all required steps are triggered in the correct order"},
+            {"key": "failed",   "label": "Wrong Order",       "description": "Fires when a step arrives out of the expected order"}
+          ]
         },
         {
           "type": "timer",
@@ -101,8 +114,14 @@
             {"key": "duration_s", "label": "Duration (s)", "type": "number",  "default": 60},
             {"key": "auto_start", "label": "Auto Start",  "type": "boolean", "default": false}
           ],
-          "inputs":  [{"key": "start", "label": "Start"}, {"key": "reset", "label": "Reset"}],
-          "outputs": [{"key": "tick",  "label": "Tick"},  {"key": "expired", "label": "Expired"}]
+          "inputs": [
+            {"key": "start", "label": "Start", "description": "Starts the countdown from the configured duration"},
+            {"key": "reset", "label": "Reset", "description": "Stops and resets the timer back to the configured duration"}
+          ],
+          "outputs": [
+            {"key": "tick",    "label": "Tick (each second)", "description": "Fires once per second while the timer is running"},
+            {"key": "expired", "label": "Time Up",            "description": "Fires when the countdown reaches zero"}
+          ]
         },
         {
           "type": "note",

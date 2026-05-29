@@ -139,7 +139,7 @@ export default function ComponentNode({ id, data, selected }) {
           {inputs.map(h => (
             <div key={h.key} className="cn-handle-row cn-handle-left">
               <Handle type="target" position={Position.Left} id={h.key} className="cn-handle" />
-              <span className="cn-handle-label">{h.label}</span>
+              <span className="cn-handle-label" title={h.description}>{h.label}</span>
             </div>
           ))}
         </div>
@@ -149,7 +149,7 @@ export default function ComponentNode({ id, data, selected }) {
         <div className="cn-handles cn-outputs">
           {outputs.map(h => (
             <div key={h.key} className="cn-handle-row cn-handle-right">
-              <span className="cn-handle-label">{h.label}</span>
+              <span className="cn-handle-label" title={h.description}>{h.label}</span>
               <Handle type="source" position={Position.Right} id={h.key} className="cn-handle" />
             </div>
           ))}

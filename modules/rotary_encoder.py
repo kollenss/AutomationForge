@@ -12,9 +12,12 @@ from encoder import RotaryEncoder
 # debounce_ms: ignore CLK falling edges within this window after each accepted
 # edge. Default 3 ms catches fast electrical bounce; KY-040 mechanical bounce
 # can extend to ~55 ms, so 60 ms gives one clean pulse per physical detent.
+# sw: BCM pin for the push-button (SW). Set to None if not connected.
 ENCODERS = [
-    {'id': 1, 'clk': 17, 'dt': 27, 'debounce_ms': 60},
+    {'id': 1, 'clk': 17, 'dt': 27, 'sw': 22, 'debounce_ms': 60},
 ]
+
+_SW_DEBOUNCE_US = 200_000  # 200 ms button debounce in pigpio microseconds
 
 MANIFEST = {
     'type':  'ky040_encoder',
@@ -43,7 +46,10 @@ def get_components():
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'dial'},
         ],
         'inputs':  [],
-        'outputs': [{'key': 'delta', 'label': 'Delta (+1 / -1)'}],
+        'outputs': [
+            {'key': 'delta', 'label': 'Turn Step (+1 / -1)', 'description': 'Fires on each detent step — +1 for clockwise, -1 for counter-clockwise'},
+            {'key': 'click', 'label': 'Button Click', 'description': 'Fires when the encoder shaft button is pressed'},
+        ],
     }]
 
 
@@ -60,7 +66,19 @@ class Device:
                 callback=lambda delta, eid=e['id']: self._on_step(eid, delta),
                 debounce_ms=e.get('debounce_ms', 3.0)
             )
-            self._encoders[e['id']] = {'enc': enc, 'position': 0, 'last_delta': 0}
+            self._encoders[e['id']] = {
+                'enc': enc, 'position': 0, 'last_delta': 0, 'last_click_tick': 0,
+            }
+            sw_pin = e.get('sw')
+            if sw_pin is not None:
+                self._pi.set_mode(sw_pin, pigpio.INPUT)
+                # KY-040 has onboard pull-up; internal PUD_UP is harmless extra safety
+                self._pi.set_pull_up_down(sw_pin, pigpio.PUD_UP)
+                cb = self._pi.callback(
+                    sw_pin, pigpio.FALLING_EDGE,
+                    lambda gpio, level, tick, eid=e['id']: self._on_click(eid, tick),
+                )
+                self._encoders[e['id']]['sw_cb'] = cb
 
     def set_event_callback(self, fn):
         self._event_cb = fn
@@ -71,6 +89,15 @@ class Device:
         enc['position']  += delta
         if self._event_cb:
             self._event_cb('delta', {'encoder_id': encoder_id, 'delta': delta})
+
+    def _on_click(self, encoder_id, tick):
+        enc = self._encoders[encoder_id]
+        # Software debounce: pigpio tick is uint32 µs, wraps ~72 min
+        if (tick - enc['last_click_tick']) & 0xFFFFFFFF < _SW_DEBOUNCE_US:
+            return
+        enc['last_click_tick'] = tick
+        if self._event_cb:
+            self._event_cb('click', {'encoder_id': encoder_id})
 
     def get_state(self):
         return {

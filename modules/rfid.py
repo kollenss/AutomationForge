@@ -29,7 +29,7 @@ def get_components():
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader'},
         ],
         'inputs':  [],
-        'outputs': [{'key': 'card_read', 'label': 'Card Read (UID)'}],
+        'outputs': [{'key': 'card_read', 'label': 'Card UID', 'description': 'Fires with the card UID string each time a card is scanned'}],
     }]
 
 

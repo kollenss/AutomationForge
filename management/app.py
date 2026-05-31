@@ -318,6 +318,11 @@ def api_engine_hardware_event():
                 'encoder_id':  eid,
                 'click':       True,
             })
+        elif device_type == 'rfid_reader' and event == 'card_read':
+            socketio.emit('rfid_state', {
+                'reader_id': value.get('reader_id', 1),
+                'uid':       value.get('uid', ''),
+            })
     return jsonify({'results': results})
 
 

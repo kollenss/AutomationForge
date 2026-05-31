@@ -93,6 +93,10 @@
 
 .nm-live-err { font-size: 12px; color: var(--danger); }
 
+.nm-live-uid { font-size: 15px; font-weight: 600; font-family: monospace; letter-spacing: .08em; }
+.nm-live-uid.active { color: var(--green); }
+.nm-live-uid.idle   { color: var(--muted); font-weight: 400; font-size: 13px; font-style: italic; font-family: inherit; letter-spacing: 0; }
+
 .nm-node-id {
   padding: 6px 16px;
   font-size: 9px; font-family: monospace; color: var(--muted);

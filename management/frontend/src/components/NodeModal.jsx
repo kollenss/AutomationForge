@@ -61,8 +61,45 @@ function RelayLive({ channel }) {
   )
 }
 
+function RfidLive({ params }) {
+  const readerId = params?.reader_id ?? 1
+  const [uid, setUid]       = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.reader_id === readerId) setUid(s.uid)
+    }
+    socket.on('rfid_state', onState)
+    return () => socket.off('rfid_state', onState)
+  }, [readerId])
+
+  function copy() {
+    if (!uid) return
+    navigator.clipboard?.writeText(uid)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="nm-live">
+      <div className="nm-live-title">Live Scan — Reader {readerId}</div>
+      <div className="nm-live-row">
+        <span className={`nm-live-uid ${uid ? 'active' : 'idle'}`}>
+          {uid ?? 'Hold card to reader…'}
+        </span>
+        <button className="nm-live-btn" onClick={copy} disabled={!uid}>
+          {copied ? 'Copied!' : 'Copy UID'}
+        </button>
+      </div>
+      <div className="nm-hint">Paste this UID into an RFID Auth "Valid UIDs" field.</div>
+    </div>
+  )
+}
+
 const LIVE_COMPONENTS = {
   relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
+  rfid_reader:   ({ params }) => <RfidLive  params={params} />,
 }
 
 export default function NodeModal({ node, library, onChange, onClose, onDelete }) {

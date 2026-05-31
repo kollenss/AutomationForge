@@ -95,6 +95,7 @@ Läs detta innan du söker igenom koden — det sparar tid.
 | Projektsparning | `Z:\management\data\projects\<uuid>.json` |
 | Djup arkitekturdokumentation | `Z:\management\GAMEFORGE.md` |
 | GPIO-pinntilldelning (alla 40 pinnar, status, komponent) | `Z:\PIN_MAP.md` |
+| Strategisk vision, roadmap, kommersiella vinklar | `memory/strategy_gameforge.md` (i Claude memory-mappen) |
 
 ### Hårdvaruevent-flöde
 

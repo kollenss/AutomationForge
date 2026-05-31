@@ -19,6 +19,17 @@
 }
 .se-sync-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface2); }
 
+.se-debug-btn {
+  font-size: 12px; padding: 4px 10px; cursor: pointer;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 4px; transition: all .15s;
+}
+.se-debug-btn:hover { color: var(--text); border-color: #a78bfa; }
+.se-debug-btn.se-debug-on {
+  background: color-mix(in srgb, #a78bfa 15%, transparent);
+  border-color: #a78bfa; color: #a78bfa;
+}
+
 .se-body { display: flex; flex: 1; overflow: hidden; }
 
 .se-canvas-wrap { flex: 1; position: relative; background: var(--bg); }
@@ -30,6 +41,50 @@
 }
 
 .se-right-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Signal Log panel ── */
+.se-log-panel {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+  background: var(--surface); border-top: 1px solid #a78bfa44;
+  font-size: 11px;
+}
+.se-log-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 12px; cursor: pointer; user-select: none;
+  color: #a78bfa;
+}
+.se-log-header:hover { background: color-mix(in srgb, #a78bfa 8%, transparent); }
+.se-log-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+.se-log-actions button {
+  font-size: 11px; padding: 2px 8px; cursor: pointer;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 3px;
+}
+.se-log-actions button:hover:not(:disabled) { color: var(--text); border-color: #a78bfa; }
+.se-log-actions button:disabled { opacity: .4; cursor: default; }
+.se-log-speed {
+  display: flex; align-items: center; gap: 5px; color: var(--muted);
+  font-size: 11px; white-space: nowrap;
+}
+.se-log-speed input[type=range] { width: 64px; accent-color: #a78bfa; }
+.se-log-chevron { color: var(--muted); margin-left: 4px; }
+.se-log-entries {
+  max-height: 180px; overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.se-log-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 12px; border-bottom: 1px solid var(--border);
+  font-family: monospace;
+}
+.se-log-entry:last-child { border-bottom: none; }
+.se-log-t     { color: var(--muted); min-width: 64px; }
+.se-log-icon  { font-size: 10px; min-width: 12px; }
+.se-log-label { color: var(--text); }
+.se-log-node .se-log-icon { color: #a78bfa; }
+.se-log-edge .se-log-icon { color: #38bdf8; }
 
 /* ── React Flow overrides ── */
 .react-flow__background { background: var(--bg) !important; }

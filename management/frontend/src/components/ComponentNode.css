@@ -11,6 +11,28 @@
   box-shadow: 0 0 0 2px var(--node-color, var(--accent));
 }
 
+@keyframes nodePulse {
+  0%   {
+    box-shadow: 0 0 0 0   color-mix(in srgb, var(--node-color) 95%, transparent),
+                0 0 12px  color-mix(in srgb, var(--node-color) 60%, transparent);
+    border-color: color-mix(in srgb, var(--node-color) 100%, white);
+    border-width: 2.5px;
+  }
+  50%  {
+    box-shadow: 0 0 0 8px  color-mix(in srgb, var(--node-color) 40%, transparent),
+                0 0 20px   color-mix(in srgb, var(--node-color) 30%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 18px color-mix(in srgb, var(--node-color)  0%, transparent),
+                0 0 0px    transparent;
+    border-color: var(--node-color);
+    border-width: 1.5px;
+  }
+}
+.cn-root.cn-active {
+  animation: nodePulse var(--pulse-dur, 600ms) ease-out forwards;
+}
+
 .cn-badge {
   font-size: 11px; font-weight: 700; flex-shrink: 0;
   background: color-mix(in srgb, var(--node-color) 20%, transparent);

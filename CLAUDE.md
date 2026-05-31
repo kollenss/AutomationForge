@@ -43,6 +43,18 @@ All file creation, editing, and reading goes through `Z:\`. Claude Code uses thi
 **SSH — run scripts, check logs, debug.**
 Use SSH to execute scripts, tail logs, restart services, check hardware, etc. Never edit files over SSH.
 
+### MCP Tools – Best Fit
+
+| Task | Tool |
+|------|------|
+| Read/edit files on Z:\ | Claude Code built-in (Read/Edit/Glob) — snabbast, skickar bara diff |
+| Run commands on Pi | MCP Router SSH (`ssh_run`) |
+| Interact with GameForge UI, click/navigate, console errors | Playwright MCP (fristående browser, ingen session-konflikt) |
+| Testa GameForge REST API-endpoints direkt | Fetch MCP |
+| Flytta fönster, skärmdumpar, lokal PowerShell | Windows-MCP |
+| **Undvik:** Windows-MCP FileSystem för Z:\ | Går via extra MCP-lager + Samba = onödigt långsamt |
+| Inspektera befintlig Chrome-session | Claude in Chrome extension |
+
 ---
 
 ## Architecture

@@ -1,3 +1,6 @@
+import threading
+import time
+
 READERS = [
     {'id': 1, 'ce': 0, 'rst': 25},
 ]
@@ -7,6 +10,8 @@ MANIFEST = {
     'label': 'RFID Reader RC522',
     'readers': len(READERS),
 }
+
+_POLL_INTERVAL = 0.1   # seconds between SPI polls
 
 
 def get_components():
@@ -29,17 +34,65 @@ def get_components():
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader'},
         ],
         'inputs':  [],
-        'outputs': [{'key': 'card_read', 'label': 'Card UID', 'description': 'Fires with the card UID string each time a card is scanned'}],
+        'outputs': [
+            {
+                'key': 'card_read',
+                'label': 'Card UID',
+                'description': 'Fires with the card UID string each time a new card is scanned',
+            }
+        ],
     }]
 
 
 class Device:
     def __init__(self):
         self._callback = None
-        self._last = {}  # reader_id → last uid
-        # Real RC522 implementation goes here (spidev / mfrc522 library).
-        # Currently stub — use execute('simulate', reader_id=1, uid='AABBCCDD').
-        print('[rfid] stub mode — no hardware connected')
+        self._last = {}   # reader_id → last detected uid string
+        self._stop = threading.Event()
+        self._reader = None
+
+        try:
+            import mfrc522
+            self._reader = mfrc522.SimpleMFRC522()
+            t = threading.Thread(target=self._poll_loop, daemon=True, name='rfid-poll')
+            t.start()
+            print('[rfid] RC522 started — CE0 (GPIO8), RST=GPIO25')
+        except Exception as e:
+            print(f'[rfid] hardware init failed ({e}) — stub mode active')
+
+    # ------------------------------------------------------------------
+    # Polling loop — runs in background thread
+    # ------------------------------------------------------------------
+
+    def _poll_loop(self):
+        prev_uid = None   # tracks card presence: non-None = card is held against reader
+
+        while not self._stop.is_set():
+            try:
+                uid_int = self._reader.read_id_no_block()
+
+                if uid_int is not None:
+                    # Format as 8-char uppercase hex, dropping the checksum byte
+                    uid_str = format(uid_int >> 8, '08X')
+
+                    if uid_str != prev_uid:
+                        # New card placed (or different card) — fire event once
+                        prev_uid = uid_str
+                        self._last[1] = uid_str
+                        if self._callback:
+                            self._callback('card_read', {'reader_id': 1, 'uid': uid_str})
+                else:
+                    # No card present — reset so the same card can fire again on next placement
+                    prev_uid = None
+
+            except Exception:
+                prev_uid = None
+
+            time.sleep(_POLL_INTERVAL)
+
+    # ------------------------------------------------------------------
+    # Hardware service contract
+    # ------------------------------------------------------------------
 
     def get_state(self):
         return {'last': self._last}

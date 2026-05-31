@@ -484,6 +484,8 @@ class GameEngine:
         else:
             scalar = value
         for node in source_nodes:
+            if self._emit:
+                self._emit('node_pulse', {'node_id': node['id']})
             results.extend(self.process_event(node['id'], h, scalar))
         return results
 
@@ -502,15 +504,20 @@ class GameEngine:
         h = handle.lower()
         with self._lock:
             targets = [
-                (self._nodes.get(e['target']), e.get('targetHandle'))
+                (self._nodes.get(e['target']), e.get('targetHandle'), e.get('id'))
                 for e in self._edges
                 if e.get('source') == node_id and (e.get('sourceHandle') or '').lower() == h
             ]
 
         results = []
-        for node, target_handle in targets:
+        for node, target_handle, edge_id in targets:
             if not node:
                 continue
+            # Emit visual pulse events for the edge and target node
+            if self._emit:
+                if edge_id:
+                    self._emit('edge_pulse', {'edge_id': edge_id})
+                self._emit('node_pulse', {'node_id': node['id']})
             comp_type = node['data']['componentType']
             executor  = _EXECUTORS.get(comp_type)
             if not executor:

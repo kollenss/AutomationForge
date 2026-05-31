@@ -112,7 +112,8 @@ export default function ComponentNode({ id, data, selected }) {
   const displayValue = data.displayParam ? data.params?.[data.displayParam] : null
 
   return (
-    <div className={`cn-root ${selected ? 'cn-selected' : ''}`} style={{ '--node-color': data.color }}>
+    <div className={`cn-root ${selected ? 'cn-selected' : ''} ${data.isActive ? 'cn-active' : ''}`}
+      style={{ '--node-color': data.color, '--pulse-dur': data.pulseDur || '600ms' }}>
       <div className="cn-header">
         <span className="cn-icon">{data.icon}</span>
         <div className="cn-labels">

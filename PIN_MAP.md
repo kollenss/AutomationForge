@@ -30,7 +30,7 @@
 | GPIO6  | Pin 31 | Digital OUT | RC522 CS — Säkerhetscentral (Wraith) | V1 |
 | GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 | V3 |
 | GPIO16 | Pin 36 | Digital OUT | RC522 CS — Serverrum (Circuit) | V1 |
-| GPIO18 | Pin 12 | PWM/DMA | NeoPixel WS2812B 24-LED (diamantbelysning) | V3 |
+| GPIO21 | Pin 40 | PCM/DMA | NeoPixel WS2812B 24-LED (diamantbelysning) | V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
 | GPIO24 | Pin 18 | Digital OUT | Röd LED (kamera-indikator) | V1 |
 | GPIO26 | Pin 37 | Digital OUT | RC522 RST — delad för alla V1-läsare | V1 |
@@ -53,7 +53,7 @@ Pin 8  GPIO14 UART TXD          LEDIG          (DFPlayer kör USB, inte HW UART)
 Pin 9  GND    Jord              LEDIG
 Pin 10 GPIO15 UART RXD          LEDIG          (DFPlayer kör USB, inte HW UART)
 Pin 11 GPIO17 Generell          I BRUK         KY-040 CLK
-Pin 12 GPIO18 PWM0 / PCM        PLANERAD       NeoPixel WS2812B (rpi_ws281x)
+Pin 12 GPIO18 PWM0 / PCM        LEDIG          ⟵ Frigjord (NeoPixel flyttad till Pin 40)
 Pin 13 GPIO27 Generell          I BRUK         KY-040 DT
 Pin 14 GND    Jord              LEDIG
 Pin 15 GPIO22 Generell          I BRUK         KY-040 SW (knapp)
@@ -81,7 +81,7 @@ Pin 36 GPIO16 Generell          PLANERAD       RC522 CS — Serverrum/Circuit (V
 Pin 37 GPIO26 Generell          PLANERAD       RC522 RST delad — alla V1-läsare
 Pin 38 GPIO20 SPI1 MOSI         LEDIG
 Pin 39 GND    Jord              LEDIG
-Pin 40 GPIO21 SPI1 SCLK/PCM     LEDIG
+Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       NeoPixel WS2812B 24-LED — rpi_ws281x PCM-DMA (V3)
 ```
 
 ---
@@ -111,20 +111,20 @@ SPI0 MOSI (GPIO10) ─┬─► MAX7219 DIN    (CS via GPIO7/CE1)
                     └─► RC522 V1 Server (CS via GPIO16)
 ```
 
-### PWM-kanaler (konfliktvarning)
+### PWM-kanaler
 Pi 3B har två oberoende hardware PWM-kanaler:
 - **PWM0:** GPIO12 (pin 32) och GPIO18 (pin 12) — samma kanal, kan EJ användas samtidigt
 - **PWM1:** GPIO13 (pin 33) och GPIO19 (pin 35) — samma kanal, kan EJ användas samtidigt
 
-**Vald plan:** Servo på GPIO12 (PWM0, pigpio HW PWM) + NeoPixel på GPIO18 (PWM0, rpi_ws281x DMA).
-⚠ Dessa delar PWM0 — använd pigpio `hardware_PWM()` för servo (inte DMA-baserat) så undviks konflikt med rpi_ws281x DMA.
+**Vald plan:** Servo på GPIO12 (PWM0, pigpio HW PWM) + NeoPixel på GPIO21 (PCM-DMA, rpi_ws281x).
+✅ Ingen PWM-konflikt — NeoPixel använder PCM-peripheraln, inte PWM. GPIO18 är frigjord.
 
 ### RC522 RST-strategi
 - Valvet: individuell RST på GPIO25
 - Våning 1 (3 läsare): delar RST på GPIO26 — ok, alla initieras samtidigt vid start
 
 ### Lediga GPIO-pinnar (bekräftat fria)
-GPIO4, GPIO13, GPIO14, GPIO15, GPIO19, GPIO20, GPIO21 — tillgängliga för framtida expansion.
+GPIO4, GPIO13, GPIO14, GPIO15, GPIO18, GPIO19, GPIO20 — tillgängliga för framtida expansion.
 
 ---
 

@@ -92,6 +92,7 @@ Läs detta innan du söker igenom koden — det sparar tid.
 | Engine-exekverare (spellogik per komponenttyp) | `Z:\management\engine.py` — `_exec_<type>()` + `_EXECUTORS`-dict |
 | Hårdvaruevent-mottagning & Socket.IO-emit | `Z:\management\app.py` — `api_engine_hardware_event()` |
 | Canvas-kortrendering (handles + live-status) | `Z:\management\frontend\src\components\ComponentNode.jsx` |
+| Signal flow-visualisering (Debug mode + Log) | `Z:\management\frontend\src\pages\SceneEditorPage.jsx` |
 | Projektsparning | `Z:\management\data\projects\<uuid>.json` |
 | Djup arkitekturdokumentation | `Z:\management\GAMEFORGE.md` |
 | GPIO-pinntilldelning (alla 40 pinnar, status, komponent) | `Z:\PIN_MAP.md` |
@@ -107,7 +108,14 @@ HW-modul callback (ex. knapp trycks)
       matchar noder på componentType (+ params-matchning om value är dict)
       anropar executor med handle=event, scalar value
   → executor propagerar till nästa nod via propagate('output_handle', value)
+  → engine.process_event() emittar node_pulse + edge_pulse per traverserad kant
   → Socket.IO push till frontend (separat, inte i den tidskritiska kedjan)
+
+Signal flow-visualisering (Debug mode):
+  node_pulse  { node_id }  — nod aktiverades (källa eller mål)
+  edge_pulse  { edge_id }  — kant traverserades
+  Frontend lyssnar endast när Debug ON (toggle i SceneEditor-headern, sparas i localStorage).
+  Signal Log spelar in events (max 500) och kan spelas upp i slow-motion (0.1×–1×).
 ```
 
 ### Engine-exekverare (nuläge)

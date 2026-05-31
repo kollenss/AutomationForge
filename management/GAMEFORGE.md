@@ -396,3 +396,38 @@ Lägg till ny executor för ny komponenttyp:
 
 - **Scene-dependencies** — definiera vad som triggar scenbyte (utanför canvas-grafen)
 - **Komponentbibliotek: disconnected-indikator** — visa om modul inte är ansluten
+
+---
+
+## Framtidsplan: USB File Pipeline
+
+USB Device Detector skickar redan `mount_point` som del av `usb_memory_inserted`-eventet.
+Det lägger grunden för en filläsningspipeline i canvas:
+
+```
+[USB Device Detector]
+  usb_memory_inserted (mount_point: "/media/pi/USB")
+        │
+        ▼
+[USB File Reader]          ← framtida modul
+  params: filename         (ex. "code.txt")
+  input:  mount_point
+  output: file_content     (textsträng)
+        │
+        ▼
+[Password Lock / Sequence Gate / ...]
+```
+
+**Att bygga när behovet uppstår:**
+
+1. **`modules/usb_file_reader.py`** — ny hårdvarumodul (egentligen logic, men hanterar Pi-filsystem)
+   - Input: `mount_point` (sträng från USB Device Detector)
+   - Param: `filename` (fil att läsa, ex. `"code.txt"`)
+   - Output: `file_content` (filens textinnehåll, trimmat)
+   - `execute('read', mount_point=..., filename=...)` → `{'content': '...'}`
+
+2. **`engine.py`** — executor för `usb_file_reader`
+   - Vid `handle == 'mount_point'`: läs filen, propagera `file_content` nedströms
+
+3. **Canvas-användning:** Dra in USB Device Detector → USB File Reader → Password Lock.
+   Spelaren sätter in ett USB-minne med rätt fil → låset öppnas.

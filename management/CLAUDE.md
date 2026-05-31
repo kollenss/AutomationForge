@@ -1,5 +1,13 @@
 # GameForge — Claude Instructions
 
+## Sessionstart — läs alltid dessa filer först
+
+Innan du skriver en enda rad kod eller föreslår en lösning, läs:
+1. `Z:\management\GAMEFORGE.md` — arkitektur, konventioner, recept
+2. `Z:\PIN_MAP.md` — GPIO-tilldelningar
+
+---
+
 ## Källkod & filåtkomst
 
 Källkoden redigeras **lokalt på Windows-klienten** via Samba-share:

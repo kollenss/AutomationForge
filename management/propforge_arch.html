@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PropForge — Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #f8fafc;
+    margin-bottom: 8px;
+  }
+  .tagline {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 48px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Layout ── */
+  .arch {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    grid-template-rows: auto auto auto;
+    gap: 0;
+    max-width: 960px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ── Boxes ── */
+  .box {
+    border-radius: 12px;
+    padding: 16px 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+  }
+  .box-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.6;
+  }
+  .box-name {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .box-sub {
+    font-size: 0.75rem;
+    opacity: 0.55;
+    margin-top: 3px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Colors */
+  .c-hw    { background: #1a2035; border-color: #3b82f6; }
+  .c-hw .box-title { color: #60a5fa; }
+  .c-hw .tag { background: #1d3a6b; color: #93c5fd; }
+
+  .c-engine { background: #1a1f2e; border-color: #8b5cf6; }
+  .c-engine .box-title { color: #a78bfa; }
+  .c-engine .tag { background: #2d1f5e; color: #c4b5fd; }
+
+  .c-fe    { background: #1a2520; border-color: #22c55e; }
+  .c-fe .box-title { color: #4ade80; }
+  .c-fe .tag { background: #14391f; color: #86efac; }
+
+  .c-module { background: #1e1a10; border-color: #f59e0b; }
+  .c-module .box-title { color: #fbbf24; }
+  .c-module .tag { background: #3d2c05; color: #fcd34d; }
+
+  .c-floor { background: #1e1218; border-color: #ec4899; }
+  .c-floor .box-title { color: #f472b6; }
+  .c-floor .tag { background: #3d0f25; color: #f9a8d4; }
+
+  .c-gpio { background: #111827; border-color: #475569; }
+  .c-gpio .box-title { color: #94a3b8; }
+
+  /* ── Grid positions ── */
+  .pos-hw      { grid-column: 1; grid-row: 2; align-self: center; }
+  .pos-engine  { grid-column: 2; grid-row: 2; margin: 0 24px; }
+  .pos-fe      { grid-column: 3; grid-row: 2; align-self: center; }
+  .pos-modules { grid-column: 1; grid-row: 3; margin-top: 24px; }
+  .pos-floor   { grid-column: 3; grid-row: 3; margin-top: 24px; }
+  .pos-gpio    { grid-column: 1 / 4; grid-row: 1; margin-bottom: 24px; }
+
+  /* ── Engine inner layout ── */
+  .engine-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .engine-row {
+    display: flex;
+    gap: 10px;
+  }
+  .engine-block {
+    flex: 1;
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  .engine-block strong {
+    display: block;
+    font-size: 0.75rem;
+    color: #c4b5fd;
+    margin-bottom: 3px;
+  }
+  .engine-block span {
+    color: #94a3b8;
+    font-size: 0.7rem;
+  }
+
+  /* ── Modules grid ── */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .mod-chip {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.68rem;
+    color: #fcd34d;
+  }
+  .mod-chip .mod-icon { margin-right: 4px; }
+  .mod-chip .mod-sub  { color: #78716c; display: block; font-size: 0.62rem; margin-top: 1px; }
+
+  /* ── GPIO row ── */
+  .gpio-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .gpio-label {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+  .gpio-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .gpio-chip {
+    background: #1e2533;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 3px 9px;
+    font-size: 0.65rem;
+    color: #94a3b8;
+  }
+
+  /* ── Arrows (SVG overlay) ── */
+  .arrows-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* ── Arrow labels ── */
+  .arrow-label {
+    font-size: 9px;
+    fill: #475569;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.72rem;
+    color: #64748b;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚙ PropForge</h1>
+<p class="tagline">Platform Architecture — Raspberry Pi 3B</p>
+
+<div class="arch" id="arch">
+
+  <!-- Row 1: pigpiod -->
+  <div class="box c-gpio pos-gpio">
+    <div class="gpio-inner">
+      <div>
+        <div class="box-title">Daemon</div>
+        <div class="box-name" style="font-size:0.85rem">pigpiod</div>
+      </div>
+      <div class="gpio-label">GPIO access for all modules →</div>
+      <div class="gpio-chips">
+        <span class="gpio-chip">KY-040 Encoder</span>
+        <span class="gpio-chip">RC522 RFID</span>
+        <span class="gpio-chip">Servo SG90</span>
+        <span class="gpio-chip">Relay Board</span>
+        <span class="gpio-chip">MAX7219</span>
+        <span class="gpio-chip">DFPlayer</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 Left: Hardware Service -->
+  <div class="box c-hw pos-hw" id="hw-box">
+    <div class="box-title">Service</div>
+    <div class="box-name">Hardware Service</div>
+    <div class="box-sub">Flask · port 5101</div>
+    <span class="tag">modules/*.py</span>
+    <div style="margin-top:10px; font-size:0.7rem; color:#475569; line-height:1.7">
+      GET /hardware<br>
+      GET /components<br>
+      GET /hardware/:type/state<br>
+      POST /hardware/:type/:cmd
+    </div>
+  </div>
+
+  <!-- Row 2 Center: Engine + App -->
+  <div class="pos-engine">
+    <div class="box c-engine engine-inner" id="engine-box">
+      <div class="box-title">Core</div>
+      <div class="box-name">PropForge</div>
+      <div class="box-sub">Flask + Socket.IO · port 5000</div>
+
+      <div class="engine-row" style="margin-top:10px">
+        <div class="engine-block">
+          <strong>app.py</strong>
+          <span>REST API · projects<br>hardware proxy · Socket.IO</span>
+        </div>
+        <div class="engine-block">
+          <strong>engine.py</strong>
+          <span>Graph executor<br>hardware_event → traverse → output</span>
+        </div>
+      </div>
+      <div class="engine-row">
+        <div class="engine-block" style="flex:1">
+          <strong>Engine endpoints</strong>
+          <span>POST /engine/hardware_event<br>POST /engine/activate<br>POST /engine/event</span>
+        </div>
+      </div>
+      <div class="engine-row">
+        <div class="engine-block" style="flex:1">
+          <strong>Socket.IO → frontend</strong>
+          <span>relay_state · encoder_state · node_pulse · edge_pulse</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 Right: Frontend -->
+  <div class="box c-fe pos-fe" id="fe-box">
+    <div class="box-title">Frontend</div>
+    <div class="box-name">React App</div>
+    <div class="box-sub">Vite · @xyflow/react</div>
+    <span class="tag">management/static/</span>
+    <div style="margin-top:10px; font-size:0.7rem; color:#475569; line-height:1.7">
+      ProjectsPage<br>
+      SceneEditorPage<br>
+      Canvas + ComponentLibrary<br>
+      Socket.IO live-status
+    </div>
+  </div>
+
+  <!-- Row 3 Left: Modules -->
+  <div class="box c-module pos-modules" id="mod-box">
+    <div class="box-title">Hardware Modules</div>
+    <div class="box-name" style="font-size:0.85rem">modules/</div>
+    <div class="modules-grid">
+      <div class="mod-chip"><span class="mod-icon">🔄</span>relay_trigger<span class="mod-sub">USB relay · 4ch</span></div>
+      <div class="mod-chip"><span class="mod-icon">🎛</span>rotary_encoder<span class="mod-sub">KY-040 · interrupt</span></div>
+      <div class="mod-chip"><span class="mod-icon">📡</span>rfid<span class="mod-sub">RC522 · SPI</span></div>
+      <div class="mod-chip"><span class="mod-icon">🔌</span>usb_device_detector<span class="mod-sub">YubiKey · USB memory</span></div>
+      <div class="mod-chip"><span class="mod-icon">🔊</span>dfplayer<span class="mod-sub">DFPlayer Mini · UART</span></div>
+      <div class="mod-chip"><span class="mod-icon">🔢</span>max7219<span class="mod-sub">7-seg display · SPI</span></div>
+      <div class="mod-chip"><span class="mod-icon">⚙️</span>servo<span class="mod-sub">SG90 · PWM</span></div>
+      <div class="mod-chip"><span class="mod-icon">🎵</span>audio<span class="mod-sub">mpg123 playback</span></div>
+    </div>
+  </div>
+
+  <!-- Row 3 Right: Floor apps -->
+  <div class="box c-floor pos-floor" id="floor-box">
+    <div class="box-title">Game App</div>
+    <div class="box-name">Floor 2 Terminal</div>
+    <div class="box-sub">Flask · port 8080</div>
+    <span class="tag">floor2_terminal/</span>
+    <div style="margin-top:10px; font-size:0.7rem; color:#475569; line-height:1.7">
+      terminal.html (SSE)<br>
+      POST /api/validate<br>
+      → hardware_service relay<br>
+      Activated by USB Detector
+    </div>
+  </div>
+
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Hardware Service</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> PropForge Engine</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> React Frontend</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> HW Modules</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div> Game Apps</div>
+</div>
+
+<script>
+// Draw arrows between boxes after layout
+window.addEventListener('load', () => {
+  const arch = document.getElementById('arch');
+  const rect = arch.getBoundingClientRect();
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('arrows-svg');
+  arch.appendChild(svg);
+
+  function getCenter(el) {
+    const r = el.getBoundingClientRect();
+    const ar = arch.getBoundingClientRect();
+    return {
+      x: r.left - ar.left + r.width / 2,
+      y: r.top  - ar.top  + r.height / 2,
+      left:   r.left - ar.left,
+      right:  r.left - ar.left + r.width,
+      top:    r.top  - ar.top,
+      bottom: r.top  - ar.top  + r.height,
+    };
+  }
+
+  function arrow(x1, y1, x2, y2, color, label, bidirectional) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    // marker
+    const markerId = 'arr-' + Math.random().toString(36).slice(2);
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', markerId);
+    marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '8');
+    marker.setAttribute('refX', '6'); marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', '0 0, 6 3, 0 6');
+    poly.setAttribute('fill', color);
+    marker.appendChild(poly);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-dasharray', '5,3');
+    line.setAttribute('marker-end', `url(#${markerId})`);
+    if (bidirectional) line.setAttribute('marker-start', `url(#${markerId})`);
+    g.appendChild(line);
+
+    if (label) {
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2 - 5;
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', mx); t.setAttribute('y', my);
+      t.setAttribute('text-anchor', 'middle');
+      t.classList.add('arrow-label');
+      t.textContent = label;
+      g.appendChild(t);
+    }
+    svg.appendChild(g);
+  }
+
+  const hw  = getCenter(document.getElementById('hw-box'));
+  const eng = getCenter(document.getElementById('engine-box'));
+  const fe  = getCenter(document.getElementById('fe-box'));
+  const mod = getCenter(document.getElementById('mod-box'));
+  const fl  = getCenter(document.getElementById('floor-box'));
+
+  // hw ↔ engine (hardware_event + commands)
+  arrow(hw.right, hw.y - 10, eng.left, eng.y - 10, '#3b82f6', 'hardware_event', false);
+  arrow(eng.left, eng.y + 10, hw.right, hw.y + 10, '#8b5cf6', '/hardware/:cmd', false);
+
+  // engine → frontend (Socket.IO)
+  arrow(eng.right, eng.y, fe.left, fe.y, '#22c55e', 'Socket.IO', false);
+
+  // modules → hw (loaded by)
+  arrow(mod.right, mod.top + 20, hw.bottom - 20, hw.bottom, '#f59e0b', 'auto-loaded', false);
+
+  // floor → hw (relay calls)
+  arrow(fl.left, fl.y, hw.right + 20, hw.bottom, '#ec4899', 'relay cmds', false);
+});
+</script>
+</body>
+</html>

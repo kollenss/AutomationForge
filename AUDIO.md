@@ -6,6 +6,45 @@ Duration column filled in after recording.
 
 ---
 
+## Generation Guide
+
+### Recommended tools
+
+| Tool | Use | Link |
+|---|---|---|
+| **ElevenLabs** | All voice lines — consistent voice per character, exports MP3 | elevenlabs.io (free tier ~10 000 chars/month) |
+| **NotebookLM** | Track 0010 only — natural two-voice dialogue (Ghost + Guard) | notebooklm.google.com |
+| **Audacity** | Post-processing — walkie-talkie filter for Cardinal, Wraith, Circuit | audacityteam.org (free) |
+
+### Recommended ElevenLabs voices (starting point — adjust to taste)
+
+| Character | Voice suggestion | Style notes |
+|---|---|---|
+| Cardinal | **Adam** or **Antoni** | Calm, authoritative, slight gravel. Test: *"Thirty years. Finally."* |
+| Ghost | **Callum** or **Charlie** | Smooth, warm, confident |
+| Wraith | **Lily** or **Sarah** | Flat, clipped, military — remove warmth |
+| Circuit | **Marcus** or **George** | Quick, technical energy |
+| Guard | **Daniel** or **Brian** | Neutral, polite, customer service |
+
+### Walkie-talkie filter in Audacity (Cardinal, Wraith, Circuit)
+
+1. Open the generated MP3 in Audacity
+2. **Effect → Filter Curve EQ** — cut everything below 300 Hz and above 3 000 Hz
+3. **Effect → Distortion** — type: Leveller, degree: Light
+4. **Effect → Compressor** — threshold −12 dB, ratio 4:1
+5. Optional: add short static burst at start — **Generate → Noise** (0.1 s, amplitude 0.3)
+6. Export as MP3 (File → Export → Export as MP3)
+
+### Punctuation = pacing — copy scripts exactly as written
+
+ElevenLabs reads punctuation as pauses and rhythm.
+- `.` — short stop
+- `—` — longer beat, dramatic pause
+- `...` — hesitation or trailing off
+- `,` — brief breath
+
+---
+
 ## Audio Style Guide
 
 | Speaker | Voice character | Delivery | Filter |
@@ -89,69 +128,122 @@ Duration column filled in after recording.
 
 ## Floor 1 — The Entrance (0008–0014)
 
-### Error lines
-
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0008 | Cardinal | Voice line | Wrong card on any reader (`denied`) | *"What are you doing over there? Get out of there — quickly — or you will ruin the whole operation."* | — |
-| 0009 | Cardinal | Voice line | Right card, wrong timing — too early (`out_of_order`) | *"Stop. Do not go there. They can see you on the monitors from the reception. Wait for Ghost to clear it."* | — |
-
-> **Note:** Track 0008 plays on `denied` from all three RFID Auth cards.
-> Track 0009 plays on `out_of_order` from the Checklist (correct card placed before its step is unlocked).
+> Track 0008 plays on `denied` from all three RFID Auth cards.
+> Track 0009 plays on `out_of_order` from the Checklist.
 
 ---
 
-### Step 1 — Reception (Ghost)
-
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0010 | Ghost + Guard | Voice line — dialogue | Ghost's card accepted in Reception | *[Ghost, smooth and confident]* "Excuse me — I was hoping you could help me reschedule a meeting with Monsieur Beaumont?" / *[Guard, polite, unhurried]* "Of course. Let me just open his calendar right away." | — |
-
-> **Recording note:** Two voices needed. Can be same actor with slight shift in delivery.
-> Ghost is completely calm — this is routine for him. The guard suspects nothing.
+**0008 — Cardinal** | Wrong card on any reader | *walkie-talkie filter*
+```
+What are you doing over there? Get out of there — quickly — or you will ruin the whole operation.
+```
 
 ---
 
-### Step 2 — Surveillance Room (Wraith) — three sequential tracks
-
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0011 | Wraith | Voice line | Wraith's card accepted in Surveillance Room | *"Wraith in position. Uploading still image to the elevator camera feed. Stand by."* | — |
-| 0012 | Wraith | Voice line | After LED blinks red (LED Zone `done`) | *"Done."* | — |
-| 0013 | Wraith | Voice line | After LED turns green (short pause) | *"Trying to disable the server room lock... Lock's open."* | — |
-
-> **Playback chain:** 0011 → LED blinks red → 0012 → LED blinks green → LED solid green → 0013 → Server door LED green
-> **Recording note:** Wraith is terse and military. "Done." is one word, no emotion. Flat is correct.
+**0009 — Cardinal** | Right card, wrong timing | *walkie-talkie filter*
+```
+Stop. Do not go there. They can see you — on the monitors — from the reception. Wait for Ghost to clear it.
+```
 
 ---
 
-### Step 3 — Server Room (Circuit)
+**0010 — Ghost + Guard** | Ghost's card accepted in Reception | *clean, in-scene — use NotebookLM*
+```
+Ghost: Excuse me — I was hoping you could help me reschedule a meeting with Monsieur Beaumont?
+Guard: Of course, sir. Let me just open his calendar right away.
+```
+> Ghost is warm and unhurried. The guard suspects absolutely nothing. Two voices — use NotebookLM for natural dialogue.
 
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0014 | Circuit | Voice line | Circuit's card accepted in Server Room | *"All clear. I have the key. Everyone — move to the elevator."* | — |
+---
+
+**0011 — Wraith** | Wraith's card accepted in Surveillance Room | *light radio static*
+```
+Wraith in position. Uploading still image to the elevator camera feed. Stand by.
+```
+
+---
+
+**0012 — Wraith** | After LED blinks red | *light radio static*
+```
+Done.
+```
+> One word. Completely flat. No emotion — that is correct for Wraith.
+
+---
+
+**0013 — Wraith** | After LED turns green | *light radio static*
+```
+Trying to disable the server room lock... Lock's open.
+```
+> Pause on the `...` — she's working while she speaks. Brief silence before "Lock's open."
+
+---
+
+**0014 — Circuit** | Circuit's card accepted in Server Room | *light radio static*
+```
+All clear. I have the key. Everyone — move to the elevator.
+```
 
 ---
 
 ## Floor 2 — The Terminal (0015–0017)
 
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0015 | Cardinal | Voice line | YubiKey inserted (terminal activates) | *"You're in. Find the alarm controls."* | — |
-| 0016 | Cardinal | Voice line | Wrong password entered | *"Circuit says you're looking at the right page — but the wrong line."* | — |
-| 0017 | Cardinal | Voice line | Correct password — alarm deactivated | *"Alarm deactivated. You have a window. Move."* | — |
+**0015 — Cardinal** | YubiKey inserted — terminal activates | *walkie-talkie filter*
+```
+You're in. Find the alarm controls.
+```
+
+---
+
+**0016 — Cardinal** | Wrong password entered | *walkie-talkie filter*
+```
+Circuit says you're looking at the right page — but the wrong line.
+```
+
+---
+
+**0017 — Cardinal** | Correct password — alarm deactivated | *walkie-talkie filter*
+```
+Alarm deactivated. You have a window. Move.
+```
 
 ---
 
 ## Floor 3 — The Vault (0018–0022)
 
-| Track | Speaker | Type | Trigger | Script | Duration |
-|---|---|---|---|---|---|
-| 0018 | Cardinal | Voice line | Wrong RFID card on vault reader | *"Who's trying to crack my vault? Get the right person in there."* | — |
-| 0019 | Cardinal | Voice line | SPECTRE card placed on vault reader | *"The best in Europe. Prove it."* | — |
-| 0020 | Cardinal | Voice line | Wrong combination step | *"Focus. Listen to the lock."* | — |
-| 0021 | Cardinal | Voice line | Long pause / inactivity | *"Is the clock ticking — or is it just me?"* | — |
-| 0022 | Cardinal | Voice line | Vault opens — diamond revealed | *"Le Cœur Bleu. Your grandmother's heart. Take it home, Nova."* | — |
+**0018 — Cardinal** | Wrong RFID card on vault reader | *walkie-talkie filter*
+```
+Who's trying to crack my vault? Get the right person in there.
+```
+
+---
+
+**0019 — Cardinal** | SPECTRE card placed | *walkie-talkie filter*
+```
+The best in Europe. Prove it.
+```
+
+---
+
+**0020 — Cardinal** | Wrong combination step | *walkie-talkie filter*
+```
+Focus. Listen to the lock.
+```
+
+---
+
+**0021 — Cardinal** | Long pause — inactivity | *walkie-talkie filter*
+```
+Is the clock ticking — or is it just me?
+```
+
+---
+
+**0022 — Cardinal** | Vault opens — diamond revealed | *walkie-talkie filter — slower, genuine*
+```
+Le Cœur Bleu. Your grandmother's heart. Take it home, Nova.
+```
+> This is the only line where Cardinal allows himself to mean it. Slower than usual. No sarcasm.
 
 ---
 

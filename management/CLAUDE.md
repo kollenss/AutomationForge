@@ -141,7 +141,7 @@ Signal flow-visualisering (Debug mode):
 | `servo` | `_exec_servo` | ✅ implementerad |
 | `timer` | `_exec_timer` | ✅ implementerad |
 | `set_value` | `_exec_set_value` | ✅ implementerad |
-| `terminal_gate` | `_exec_terminal_gate` | ✅ implementerad |
+| `terminal_gate` | `_exec_terminal_gate` | ✅ implementerad (label: "Web App Bridge"; outputs: `success`, `failure`) |
 | `activate_scene`, `deactivate_scene` | inline i `process_event` | ✅ implementerad |
 | `on_scene_start` | ingen executor (fires externt) | ✅ implementerad |
 | `password_lock`, `sequence` | saknas | ⏳ finns i library, ej i engine |
@@ -265,7 +265,7 @@ Fristående Flask-app på port 8080. Styrs av GameForge via HTTP — ingen egen 
 | `POST /enable` | Aktiverar tangentbord, tar emot `{ password }` (override av config.json) |
 | `POST /disable` | Deaktiverar tangentbord, rensar password-override |
 | `GET /api/status` | `{ enabled: bool }` |
-| `POST /api/validate` | Validerar kod, POSTar `terminal_gate/solved` till GameForge vid rätt kod |
+| `POST /api/validate` | Validerar kod; POSTar `terminal_gate/success` vid rätt kod, `terminal_gate/failure` vid fel |
 | `GET /api/keys` | SSE-stream av tangentbordstryckningar (endast när enabled) |
 
-Terminalen startar alltid i `enabled: false`. GameForge `terminal_gate`-kortet skickar enable/disable via dess executor.
+Terminalen startar alltid i `enabled: false`. GameForge **Web App Bridge**-kortet (`terminal_gate`) skickar enable/disable via dess executor.

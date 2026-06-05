@@ -37,20 +37,21 @@
         },
         {
           "type": "terminal_gate",
-          "label": "Terminal Gate",
-          "subtitle": "Floor 2 terminal",
+          "label": "Web App Bridge",
+          "subtitle": "HTTP integration",
           "color": "#0ea5e9",
           "icon": "⌨",
           "params": [
-            {"key": "url",      "label": "Terminal URL",    "type": "text",     "default": "http://localhost:8080"},
-            {"key": "password", "label": "Override Code",   "type": "password", "default": ""}
+            {"key": "url",      "label": "App URL",       "type": "text",     "default": "http://localhost:8080"},
+            {"key": "password", "label": "Override Code", "type": "password", "default": ""}
           ],
           "inputs": [
             {"key": "enable",  "label": "Enable",  "description": "Enables keyboard input on the terminal"},
             {"key": "disable", "label": "Disable", "description": "Disables keyboard input and resets to waiting screen"}
           ],
           "outputs": [
-            {"key": "solved", "label": "Code Correct", "description": "Fires when the correct override code is entered"}
+            {"key": "success", "label": "Successful Outcome", "description": "Fires when the app reports a successful outcome"},
+            {"key": "failure", "label": "Unsuccessful Outcome", "description": "Fires when the app reports a failed outcome"}
           ]
         },
         {

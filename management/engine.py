@@ -374,8 +374,11 @@ def _exec_servo(node_id, params, handle, value, emit, propagate, get_state):
 
 
 def _exec_terminal_gate(node_id, params, handle, value, emit, propagate, get_state):
-    if handle == 'solved':
-        propagate('solved', value)
+    if handle == 'success':
+        propagate('success', value)
+        return
+    if handle == 'failure':
+        propagate('failure', value)
         return
     if handle not in ('enable', 'disable'):
         return

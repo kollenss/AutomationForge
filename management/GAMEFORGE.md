@@ -402,7 +402,7 @@ Lägg till ny executor för ny komponenttyp:
 - [x] **Scenaktivering** — `active`-flagga per scen, engine filtrerar hårdvaru-events till aktiva scener
 - [x] **on_scene_start** — Logic-kort som fires en gång när scenen aktiveras
 - [x] **activate_scene / deactivate_scene** — Logic-kort med `scene_select`-dropdown
-- [x] **Terminal Gate** — Logic-kort som styr floor2-terminal via HTTP, tar emot `solved`-event
+- [x] **Web App Bridge** — Logic-kort som integrerar extern webbapp via HTTP; skickar enable/disable, tar emot `success`/`failure`-events
 - [x] **USB Device Detector-simulering** — dropdown YubiKey/USB Memory + Insert/Remove
 - [x] **Scennamn inline-redigering** — klicka scennamn i ProjectsPage för att byta namn
 
@@ -427,9 +427,10 @@ En fristående Flask-app (`/home/pi/floor2_terminal/terminal_web.py`) på port 8
 [USB Device Detector]  yubikey_inserted
         │
         ▼
-[Terminal Gate]         params: url, password
+[Web App Bridge]        params: url, password
   enable ──────────────► POST /enable { password }   → terminal accepterar tangentbord
-  solved ◄──────────────  POST /engine/hardware_event { device_type: terminal_gate, event: solved }
+  success ◄─────────────  POST /engine/hardware_event { device_type: terminal_gate, event: success }
+  failure ◄─────────────  POST /engine/hardware_event { device_type: terminal_gate, event: failure }
         │
         ▼
 [Activate Scene "Floor 3"]
@@ -442,10 +443,10 @@ En fristående Flask-app (`/home/pi/floor2_terminal/terminal_web.py`) på port 8
 | `POST /enable` | Aktiverar tangentbord; tar emot `{ password }` — overridar config.json-lösenord |
 | `POST /disable` | Deaktiverar tangentbord, rensar password-override |
 | `GET /api/status` | `{ enabled: bool }` |
-| `POST /api/validate` | Validerar kod; vid rätt svar POSTas `terminal_gate/solved` till GameForge |
+| `POST /api/validate` | Validerar kod; POSTar `terminal_gate/success` vid rätt kod, `terminal_gate/failure` vid fel |
 | `GET /api/keys` | SSE-stream av tangentbordstryckningar (filtreras bort när disabled) |
 
-Lösenord i fallback-ordning: 1) `password`-param på Terminal Gate-kortet (skickas vid enable), 2) `/home/pi/modules/config.json`.
+Lösenord i fallback-ordning: 1) `password`-param på Web App Bridge-kortet (skickas vid enable), 2) `/home/pi/modules/config.json`.
 
 ---
 

@@ -148,21 +148,26 @@
           ]
         },
         {
-          "type": "sequence",
-          "label": "Sequence Gate",
-          "subtitle": "Order-based trigger",
+          "type": "checklist",
+          "label": "Checklist",
+          "subtitle": "Steps in order",
           "color": "#8b5cf6",
-          "icon": "🔗",
+          "icon": "✓",
           "params": [
-            {"key": "length",        "label": "Steps",        "type": "number",  "default": 4},
-            {"key": "reset_on_fail", "label": "Reset on fail","type": "boolean", "default": true}
+            {"key": "length",        "label": "Number of Steps", "type": "number",  "default": 3},
+            {"key": "reset_on_fail", "label": "Reset on wrong order", "type": "boolean", "default": true}
           ],
           "inputs": [
-            {"key": "step", "label": "Step Trigger", "description": "Each trigger is recorded as the next step in the sequence"}
+            {"key": "step_1", "label": "Step 1", "description": "First thing that must happen"},
+            {"key": "step_2", "label": "Step 2", "description": "Second — only accepted after Step 1"},
+            {"key": "step_3", "label": "Step 3", "description": "Third — only accepted after Step 2"},
+            {"key": "step_4", "label": "Step 4", "description": "Fourth — only accepted after Step 3"},
+            {"key": "step_5", "label": "Step 5", "description": "Fifth — only accepted after Step 4"},
+            {"key": "step_6", "label": "Step 6", "description": "Sixth — only accepted after Step 5"}
           ],
           "outputs": [
-            {"key": "complete", "label": "Sequence Complete", "description": "Fires when all required steps are triggered in the correct order"},
-            {"key": "failed",   "label": "Wrong Order",       "description": "Fires when a step arrives out of the expected order"}
+            {"key": "complete",     "label": "Complete",      "description": "Fires when all steps are done in the correct order"},
+            {"key": "out_of_order", "label": "Out of Order",  "description": "Fires when a step arrives before it is expected — checklist resets"}
           ]
         },
         {

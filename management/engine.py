@@ -483,6 +483,58 @@ def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
     _emit_state(text)
 
 
+def _exec_checklist(node_id, params, handle, value, emit, propagate, get_state):
+    """Execute a Checklist step.
+
+    Tracks which step is expected next using per-node state.
+    Steps must arrive in order (step_1 → step_2 → ... → step_N).
+    Out-of-order arrivals fire 'out_of_order' and reset the checklist
+    if reset_on_fail is true.
+
+    'length' controls how many steps count — inputs beyond that are ignored.
+    """
+    if not handle.startswith('step_'):
+        return
+    try:
+        step_num = int(handle.split('_')[1])
+    except (IndexError, ValueError):
+        return
+
+    length        = max(1, int(params.get('length', 3)))
+    reset_on_fail = params.get('reset_on_fail', True)
+
+    # Skip inputs that are beyond the configured length
+    if step_num > length:
+        return
+
+    state    = get_state({'next_step': 1})
+    expected = state['next_step']
+
+    def _emit_status(current):
+        emit('checklist_state', {
+            'node_id': node_id,
+            'step':    current,
+            'total':   length,
+        })
+
+    if step_num == expected:
+        if step_num == length:
+            # Final step — checklist complete
+            state['next_step'] = 1   # reset so it can be reused
+            _emit_status(length)
+            propagate('complete', value)
+        else:
+            # Correct step, advance
+            state['next_step'] = expected + 1
+            _emit_status(step_num)
+    else:
+        # Wrong order
+        if reset_on_fail:
+            state['next_step'] = 1
+        _emit_status(-1)
+        propagate('out_of_order', value)
+
+
 def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
     """Execute a WS2812B LED Zone command.
 
@@ -556,6 +608,7 @@ _EXECUTORS = {
     'timer':         _exec_timer,
     'set_value':     _exec_set_value,
     'terminal_gate': _exec_terminal_gate,
+    'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
 }
 

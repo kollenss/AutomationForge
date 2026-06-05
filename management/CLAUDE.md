@@ -145,7 +145,8 @@ Signal flow-visualisering (Debug mode):
 | `led_zone`      | `_exec_led_zone`      | ✅ implementerad (WS2812B zone; inputs: set_color/blink/pulse/chase/rainbow/off; output: done) |
 | `activate_scene`, `deactivate_scene` | inline i `process_event` | ✅ implementerad |
 | `on_scene_start` | ingen executor (fires externt) | ✅ implementerad |
-| `password_lock`, `sequence` | saknas | ⏳ finns i library, ej i engine |
+| `checklist`     | `_exec_checklist`     | ✅ implementerad (step_1–step_6 i ordning → complete / out_of_order) |
+| `password_lock` | saknas | ⏳ finns i library, ej i engine |
 
 ### Executor-signatur
 

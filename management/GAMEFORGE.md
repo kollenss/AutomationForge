@@ -69,7 +69,7 @@ AutomationForge/
 
 ## Hardware Service (`modules/hardware_service.py`)
 
-En enda Flask-tjänst på port 5101 som **äger all hårdvara**. Både GameForge och spel-appar (floor2_terminal) pratar med denna tjänst istället för att hålla hårdvara direkt.
+En enda Flask-tjänst på port 5101 som **äger all hårdvara**. Både GameForge och Web App Bridges (t.ex. floor2_terminal) pratar med denna tjänst istället för att hålla hårdvara direkt.
 
 **Modulupptäckt vid start:** Scannar `modules/` efter `.py`-filer som innehåller `MANIFEST` och `Device`. Filer utan dessa ignoreras (test-scripts, utilities).
 
@@ -418,17 +418,22 @@ Lägg till ny executor för ny komponenttyp:
 
 ---
 
-## Floor 2 Terminal
+## Web App Bridge — Terminal Interface
 
-En fristående Flask-app (`/home/pi/floor2_terminal/terminal_web.py`) på port 8080 som representerar säkerhetsterminalen i Diamond Heist. Startas manuellt vid boot (se CLAUDE.md). Styrs helt av GameForge via HTTP — ingen egen USB-detektering eller relästyrning.
+`/home/pi/floor2_terminal/terminal_web.py` — fristående Flask-app på port 8080.
 
-**Flöde:**
+En **Web App Bridge** är en extern webbapp som integreras med GameForge via HTTP. GameForge styr appen med enable/disable-kommandon och appen rapporterar `success`/`failure` tillbaka som events. Denna implementation är en hacker-terminal för Diamond Heist — men mönstret är generiskt och går att återanvända för vilken extern app som helst.
+
+Startas manuellt vid boot (se CLAUDE.md). `floor2_terminal/` är gitignorerad.
+
+**Signalflöde:**
 ```
 [USB Device Detector]  yubikey_inserted
         │
         ▼
-[Web App Bridge]        params: url, password
-  enable ──────────────► POST /enable { password }   → terminal accepterar tangentbord
+[Web App Bridge]        params: App URL, Override Code
+  enable ──────────────► POST /enable { password }
+  disable ─────────────► POST /disable
   success ◄─────────────  POST /engine/hardware_event { device_type: terminal_gate, event: success }
   failure ◄─────────────  POST /engine/hardware_event { device_type: terminal_gate, event: failure }
         │
@@ -436,17 +441,17 @@ En fristående Flask-app (`/home/pi/floor2_terminal/terminal_web.py`) på port 8
 [Activate Scene "Floor 3"]
 ```
 
-**Terminal-endpoints:**
+**Endpoints (Web App Bridge contract):**
 
-| Endpoint | Funktion |
+| Endpoint | Role |
 |---|---|
-| `POST /enable` | Aktiverar tangentbord; tar emot `{ password }` — overridar config.json-lösenord |
-| `POST /disable` | Deaktiverar tangentbord, rensar password-override |
-| `GET /api/status` | `{ enabled: bool }` |
-| `POST /api/validate` | Validerar kod; POSTar `terminal_gate/success` vid rätt kod, `terminal_gate/failure` vid fel |
-| `GET /api/keys` | SSE-stream av tangentbordstryckningar (filtreras bort när disabled) |
+| `POST /enable` | GameForge activates the bridge; optional `{ password }` overrides config |
+| `POST /disable` | GameForge deactivates the bridge and resets state |
+| `GET /api/status` | Returns `{ enabled: bool }` |
+| `POST /api/validate` | Validates player input; fires `success` or `failure` to GameForge |
+| `GET /api/keys` | SSE stream of Pi keyboard events → phone browser (terminal-specific) |
 
-Lösenord i fallback-ordning: 1) `password`-param på Web App Bridge-kortet (skickas vid enable), 2) `/home/pi/modules/config.json`.
+Password priority: 1) Override code sent by GameForge on `/enable`, 2) `config.json`, 3) hardcoded fallback `DEFAULT_PASSWORD`.
 
 ---
 

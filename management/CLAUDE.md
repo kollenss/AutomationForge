@@ -256,16 +256,25 @@ ProjectsPage lyssnar på `scene_state` och uppdaterar grön/grå dot + Activate-
 
 **Engine-metoder:** `activate_scene()`, `deactivate_scene()`, `get_scene_id_by_name()`, `set_activation_callback(fn)` — callback sätts av `app.py` (`_persist_scene_state`) för att spara till JSON + emittera socket-event.
 
-### Floor 2 Terminal (`/home/pi/floor2_terminal/terminal_web.py`)
+### Web App Bridge — Terminal Interface (`/home/pi/floor2_terminal/terminal_web.py`)
 
-Fristående Flask-app på port 8080. Styrs av GameForge via HTTP — ingen egen USB-detektering eller relästyrning.
+Fristående Flask-app på port 8080. Implementerar Web App Bridge-kontraktet — styrs av GameForge via HTTP och rapporterar `success`/`failure` tillbaka. Startar alltid i `enabled: false`.
+
+**Konfigureringsvariabler i toppen av filen (lätta att byta för ny implementation):**
+
+| Variabel | Beskrivning |
+|---|---|
+| `GAMEFORGE_URL` | URL till GameForge-instansen |
+| `DEVICE_TYPE` | Måste matcha nodens `type` i component_library.json (`terminal_gate`) |
+| `CONFIG_PATH` | Sökväg till config.json med fallback-lösenord |
+| `KEYBOARD_DEVICE` | evdev-sökväg till Pi:ns USB-tangentbord |
+
+**Web App Bridge-kontrakt (endpoints):**
 
 | Endpoint | Funktion |
 |---|---|
-| `POST /enable` | Aktiverar tangentbord, tar emot `{ password }` (override av config.json) |
-| `POST /disable` | Deaktiverar tangentbord, rensar password-override |
+| `POST /enable` | GameForge aktiverar bryggan; optional `{ password }` overridar config |
+| `POST /disable` | GameForge deaktiverar bryggan, rensar state |
 | `GET /api/status` | `{ enabled: bool }` |
-| `POST /api/validate` | Validerar kod; POSTar `terminal_gate/success` vid rätt kod, `terminal_gate/failure` vid fel |
-| `GET /api/keys` | SSE-stream av tangentbordstryckningar (endast när enabled) |
-
-Terminalen startar alltid i `enabled: false`. GameForge **Web App Bridge**-kortet (`terminal_gate`) skickar enable/disable via dess executor.
+| `POST /api/validate` | Validerar spelarens input; POSTar `success` eller `failure` till GameForge |
+| `GET /api/keys` | SSE-stream av Pi-tangentbordstryckningar → telefonbrowser (terminal-specifik) |

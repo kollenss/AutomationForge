@@ -142,6 +142,7 @@ Signal flow-visualisering (Debug mode):
 | `timer` | `_exec_timer` | ✅ implementerad |
 | `set_value` | `_exec_set_value` | ✅ implementerad |
 | `terminal_gate` | `_exec_terminal_gate` | ✅ implementerad (label: "Web App Bridge"; outputs: `success`, `failure`) |
+| `led_zone`      | `_exec_led_zone`      | ✅ implementerad (WS2812B zone; inputs: set_color/blink/pulse/chase/rainbow/off; output: done) |
 | `activate_scene`, `deactivate_scene` | inline i `process_event` | ✅ implementerad |
 | `on_scene_start` | ingen executor (fires externt) | ✅ implementerad |
 | `password_lock`, `sequence` | saknas | ⏳ finns i library, ej i engine |

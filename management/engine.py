@@ -483,6 +483,67 @@ def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
     _emit_state(text)
 
 
+def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
+    """Execute a WS2812B LED Zone command.
+
+    Instant commands (set_color, off, pulse, rainbow) fire Done immediately.
+    Finite animations (blink, chase) run in a thread and fire Done on completion.
+    """
+    first      = int(params.get('first_led', 0))
+    last       = int(params.get('last_led', 2))
+    brightness = int(params.get('brightness', 128))
+    default_color = params.get('default_color', 'white')
+
+    payload = {
+        'first_led':     first,
+        'last_led':      last,
+        'brightness':    brightness,
+        'default_color': default_color,
+    }
+
+    if handle == 'set_color':
+        payload['color'] = value if isinstance(value, str) and value else default_color
+        _hw_post('/hardware/ws2812b/set_color', payload)
+        propagate('done', value)
+
+    elif handle == 'off':
+        _hw_post('/hardware/ws2812b/off', payload)
+        propagate('done', value)
+
+    elif handle == 'pulse':
+        _hw_post('/hardware/ws2812b/pulse', payload)
+        propagate('done', value)
+
+    elif handle == 'rainbow':
+        _hw_post('/hardware/ws2812b/rainbow', payload)
+        propagate('done', value)
+
+    elif handle == 'blink':
+        try:
+            payload['count'] = int(value) if value else 3
+        except (TypeError, ValueError):
+            payload['count'] = 3
+
+        def _run():
+            try:
+                _hw_post('/hardware/ws2812b/blink', payload)
+            except Exception as e:
+                print(f'[led_zone] blink failed: {e}')
+            propagate('done', value)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    elif handle == 'chase':
+        def _run():
+            try:
+                _hw_post('/hardware/ws2812b/chase', payload)
+            except Exception as e:
+                print(f'[led_zone] chase failed: {e}')
+            propagate('done', value)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
@@ -495,6 +556,7 @@ _EXECUTORS = {
     'timer':         _exec_timer,
     'set_value':     _exec_set_value,
     'terminal_gate': _exec_terminal_gate,
+    'led_zone':      _exec_led_zone,
 }
 
 

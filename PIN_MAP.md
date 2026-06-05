@@ -30,9 +30,8 @@
 | GPIO6  | Pin 31 | Digital OUT | RC522 CS — Säkerhetscentral (Wraith) | V1 |
 | GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 | V3 |
 | GPIO16 | Pin 36 | Digital OUT | RC522 CS — Serverrum (Circuit) | V1 |
-| GPIO21 | Pin 40 | PCM/DMA | NeoPixel WS2812B 24-LED (diamantbelysning) | V3 |
+| GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip, 10 LED (index 0–2: V1, 3–5: V2, 6–9: V3) | V1+V2+V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
-| GPIO24 | Pin 18 | Digital OUT | Röd LED (kamera-indikator) | V1 |
 | GPIO26 | Pin 37 | Digital OUT | RC522 RST — delad för alla V1-läsare | V1 |
 
 ---
@@ -59,7 +58,7 @@ Pin 14 GND    Jord              LEDIG
 Pin 15 GPIO22 Generell          I BRUK         KY-040 SW (knapp)
 Pin 16 GPIO23 Generell          PLANERAD       Piezo buzzer (V3)
 Pin 17 3.3V   Strömförsörjning  LEDIG
-Pin 18 GPIO24 Generell          PLANERAD       Röd LED kamera-indikator V1 (+330Ω)
+Pin 18 GPIO24 Generell          LEDIG          ← Frigjord (röd LED ersatt av WS2812B index 0)
 Pin 19 GPIO10 SPI0 MOSI         I BRUK         MAX7219 DIN + RC522 MOSI (delad)
 Pin 20 GND    Jord              LEDIG
 Pin 21 GPIO9  SPI0 MISO         I BRUK         RC522 MISO
@@ -81,7 +80,7 @@ Pin 36 GPIO16 Generell          PLANERAD       RC522 CS — Serverrum/Circuit (V
 Pin 37 GPIO26 Generell          PLANERAD       RC522 RST delad — alla V1-läsare
 Pin 38 GPIO20 SPI1 MOSI         LEDIG
 Pin 39 GND    Jord              LEDIG
-Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       NeoPixel WS2812B 24-LED — rpi_ws281x PCM-DMA (V3)
+Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       WS2812B strip 10 LED — rpi_ws281x PCM-DMA (V1+V2+V3)
 ```
 
 ---
@@ -116,8 +115,8 @@ Pi 3B har två oberoende hardware PWM-kanaler:
 - **PWM0:** GPIO12 (pin 32) och GPIO18 (pin 12) — samma kanal, kan EJ användas samtidigt
 - **PWM1:** GPIO13 (pin 33) och GPIO19 (pin 35) — samma kanal, kan EJ användas samtidigt
 
-**Vald plan:** Servo på GPIO12 (PWM0, pigpio HW PWM) + NeoPixel på GPIO21 (PCM-DMA, rpi_ws281x).
-✅ Ingen PWM-konflikt — NeoPixel använder PCM-peripheraln, inte PWM. GPIO18 är frigjord.
+**Vald plan:** Servo på GPIO12 (PWM0, pigpio HW PWM) + WS2812B strip på GPIO21 (PCM-DMA, rpi_ws281x).
+✅ Ingen PWM-konflikt — WS2812B använder PCM-peripheraln, inte PWM. GPIO18 är frigjord.
 
 ### RC522 RST-strategi
 - Valvet: individuell RST på GPIO25

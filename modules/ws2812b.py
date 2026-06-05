@@ -309,6 +309,17 @@ class Device:
         threading.Thread(target=_run, daemon=True).start()
         return {'ok': True}
 
+    def execute(self, cmd, **kwargs):
+        """Dispatch hardware_service calls to the right method.
+
+        hardware_service always calls device.execute(cmd, **body_kwargs).
+        We forward to self.set_color(kwargs), self.blink(kwargs), etc.
+        """
+        method = getattr(self, cmd, None)
+        if method is None:
+            raise ValueError(f'[ws2812b] unknown command: {cmd}')
+        return method(kwargs)
+
     def get_state(self):
         return {
             'connected': _HW_AVAILABLE,

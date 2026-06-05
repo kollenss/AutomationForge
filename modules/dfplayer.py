@@ -36,15 +36,18 @@ def get_components():
         'icon':          '🔊',
         'display_param': 'track',
         'params': [
-            {'key': 'track',  'label': 'Track',        'type': 'number', 'default': 1,  'min': 1, 'max': 255},
-            {'key': 'volume', 'label': 'Volume (0-30)', 'type': 'number', 'default': 20, 'min': 0, 'max': 30},
-            {'key': 'name',   'label': 'Label',         'type': 'text',   'default': 'speaker'},
+            {'key': 'track',      'label': 'Track',           'type': 'number', 'default': 1,  'min': 1, 'max': 255},
+            {'key': 'volume',     'label': 'Volume (0-30)',    'type': 'number', 'default': 20, 'min': 0, 'max': 30},
+            {'key': 'duration_s', 'label': 'Duration (s)',     'type': 'number', 'default': 0},
+            {'key': 'name',       'label': 'Label',            'type': 'text',   'default': 'speaker'},
         ],
         'inputs': [
             {'key': 'trigger', 'label': 'Play Track', 'description': 'Plays the configured track at the configured volume'},
-            {'key': 'stop',    'label': 'Stop', 'description': 'Stops playback immediately'},
+            {'key': 'stop',    'label': 'Stop',       'description': 'Stops playback immediately and cancels any pending Done'},
         ],
-        'outputs': [],
+        'outputs': [
+            {'key': 'done', 'label': 'Done', 'description': 'Fires after Duration seconds — set Duration to the length of your audio clip'},
+        ],
     }]
 
 

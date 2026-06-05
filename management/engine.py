@@ -350,14 +350,43 @@ def _exec_combo_lock(node_id, params, handle, value, emit, propagate, get_state)
 
 
 def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):
+    """Play or stop a DFPlayer Mini track.
+
+    If 'duration_s' is set > 0 on the card, a Done signal fires after that
+    many seconds — use this to chain audio → LED → audio sequences on canvas.
+    Stop cancels any pending Done timer so it never fires after manual stop.
+    """
+    state = get_state({'timer': None})
     h = (handle or 'trigger').lower()
+
     if h == 'stop':
+        t = state.get('timer')
+        if t:
+            t.cancel()
+            state['timer'] = None
         _hw_post('/hardware/dfplayer/stop', {})
         return
+
     # trigger / play / anything else → play configured track
-    track  = max(1, min(255, int(params.get('track',  1))))
-    volume = max(0, min(30,  int(params.get('volume', 20))))
+    track      = max(1, min(255, int(params.get('track',  1))))
+    volume     = max(0, min(30,  int(params.get('volume', 20))))
+    duration_s = float(params.get('duration_s', 0))
+
     _hw_post('/hardware/dfplayer/play', {'track': track, 'volume': volume})
+
+    if duration_s > 0:
+        t = state.get('timer')
+        if t:
+            t.cancel()
+
+        def _done():
+            state['timer'] = None
+            propagate('done', value)
+
+        timer = threading.Timer(duration_s, _done)
+        timer.daemon = True
+        timer.start()
+        state['timer'] = timer
 
 
 def _exec_servo(node_id, params, handle, value, emit, propagate, get_state):

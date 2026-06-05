@@ -69,7 +69,10 @@ ElevenLabs reads punctuation as pauses and rhythm.
 
 ---
 
-## Pre-Game (0006–0007)
+## Pre-Game (0006–0007) — ⚪ Skip if tight
+
+> 0006 är atmosfärisk men spelet fungerar utan den.
+> 0007 är bakgrunden — berätta den muntligt om du inte hinner spela in.
 
 | Track | Speaker | Type | Trigger | Script | Duration |
 |---|---|---|---|---|---|
@@ -126,7 +129,7 @@ ElevenLabs reads punctuation as pauses and rhythm.
 
 ---
 
-## Floor 1 — The Entrance (0008–0014)
+## Floor 1 — The Entrance (0008–0014) — 🔴 Must have
 
 > Track 0008 plays on `denied` from all three RFID Auth cards.
 > Track 0009 plays on `out_of_order` from the Checklist.
@@ -186,7 +189,7 @@ All clear. I have the key. Everyone — move to the elevator.
 
 ---
 
-## Floor 2 — The Terminal (0015–0017)
+## Floor 2 — The Terminal (0015–0017) — 🔴 Must have
 
 **0015 — Cardinal** | YubiKey inserted — terminal activates | *walkie-talkie filter*
 ```
@@ -209,7 +212,7 @@ Alarm deactivated. You have a window. Move.
 
 ---
 
-## Floor 3 — The Vault (0018–0022)
+## Floor 3 — The Vault (0018–0022) — 🔴 Must have
 
 **0018 — Cardinal** | Wrong RFID card on vault reader | *walkie-talkie filter*
 ```
@@ -276,9 +279,21 @@ Le Cœur Bleu. Your grandmother's heart. Take it home, Nova.
 
 ---
 
+## Priority
+
+| Priority | Tracks | Reason |
+|---|---|---|
+| 🔴 **Must have** | 0008–0022 | Triggered by game events — silence = broken puzzle |
+| 🟡 **Nice to have** | 0006 | Briefcase opens — atmospheric but skippable |
+| ⚪ **Skip if tight** | 0007 | Full briefing — tell it verbally if needed |
+
+---
+
 ## Status
 
 | Track | Script done | Recorded | On SD card |
 |---|---|---|---|
 | 0001–0005 | ✅ | ✅ | ✅ |
-| 0006–0022 | ✅ | ❌ | ❌ |
+| 0006 | ✅ | ❌ | ❌ |
+| 0007 | ✅ | ❌ | ❌ |
+| 0008–0022 | ✅ | ❌ | ❌ |

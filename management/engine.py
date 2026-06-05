@@ -373,18 +373,96 @@ def _exec_servo(node_id, params, handle, value, emit, propagate, get_state):
         _hw_post('/hardware/servo/release', {'gpio_pin': gpio_pin})
 
 
+def _exec_terminal_gate(node_id, params, handle, value, emit, propagate, get_state):
+    if handle == 'solved':
+        propagate('solved', value)
+        return
+    if handle not in ('enable', 'disable'):
+        return
+    url = params.get('url', 'http://localhost:8080').rstrip('/')
+    body = {}
+    if handle == 'enable':
+        pw = params.get('password', '').strip()
+        if pw:
+            body['password'] = pw
+    try:
+        req = _req.Request(f'{url}/{handle}', data=json.dumps(body).encode(),
+                           headers={'Content-Type': 'application/json'}, method='POST')
+        _req.urlopen(req, timeout=2)
+    except Exception as e:
+        print(f'[terminal_gate] {handle} failed: {e}')
+
+
+def _exec_set_value(node_id, params, handle, value, emit, propagate, get_state):
+    out = params.get('value', '')
+    threading.Timer(0.05, propagate, args=('out', out)).start()
+
+
+def _exec_timer(node_id, params, handle, value, emit, propagate, get_state):
+    state = get_state({'running': False, 'cancel_event': None})
+    duration = max(1, int(params.get('duration_s', 60)))
+
+    def _cancel():
+        ev = state.get('cancel_event')
+        if ev:
+            ev.set()
+        state['running'] = False
+        state['cancel_event'] = None
+
+    if handle == 'reset':
+        _cancel()
+        if emit:
+            emit('timer_state', {'node_id': node_id, 'remaining': duration, 'running': False})
+        return
+
+    if handle == 'start':
+        _cancel()
+        cancel_ev = threading.Event()
+        state['running'] = True
+        state['cancel_event'] = cancel_ev
+        if emit:
+            emit('timer_state', {'node_id': node_id, 'remaining': duration, 'running': True})
+
+        def _run():
+            remaining = duration
+            while remaining > 0:
+                if cancel_ev.wait(1.0):
+                    return
+                remaining -= 1
+                propagate('tick', remaining)
+                if emit:
+                    emit('timer_state', {'node_id': node_id, 'remaining': remaining, 'running': remaining > 0})
+            state['running'] = False
+            propagate('expired', True)
+
+        threading.Thread(target=_run, daemon=True,
+                         name=f'timer-{str(node_id)[-8:]}').start()
+
+
 def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
     h      = (handle or 'value').lower()
     digits = int(params.get('digits', 2))
 
+    def _emit_state(text, scrolling=False):
+        if emit:
+            emit('max7219_state', {'node_id': node_id, 'text': text, 'scrolling': scrolling})
+
     if h == 'clear':
         _hw_post('/hardware/max7219/clear', {})
+        _emit_state('')
+        return
+
+    if h == 'scroll':
+        text     = str(params.get('scroll_text', ''))
+        speed_ms = max(50, min(1000, int(params.get('speed_ms', 150))))
+        _hw_post('/hardware/max7219/scroll', {'text': text, 'speed_ms': speed_ms})
+        _emit_state(text, scrolling=True)
         return
 
     if h == 'text':
-        # Send full text string via /text endpoint → _show_text() writes all 8 digits
         text = str(value) if not isinstance(value, bool) else ('ERR' if value else '   ')
         _hw_post('/hardware/max7219/text', {'text': text})
+        _emit_state(text)
         return
 
     # Numeric / value mode: render as zero-padded number, show on a pair
@@ -399,6 +477,7 @@ def _exec_max7219(node_id, params, handle, value, emit, propagate, get_state):
         text = str(value)
 
     _hw_post('/hardware/max7219/show', {'text': text, 'pair': pair, 'intensity': intensity})
+    _emit_state(text)
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +489,9 @@ _EXECUTORS = {
     'dfplayer':      _exec_dfplayer,
     'max7219':       _exec_max7219,
     'servo':         _exec_servo,
+    'timer':         _exec_timer,
+    'set_value':     _exec_set_value,
+    'terminal_gate': _exec_terminal_gate,
 }
 
 
@@ -418,25 +500,70 @@ _EXECUTORS = {
 class GameEngine:
     def __init__(self):
         self._lock = threading.Lock()
-        self._nodes = {}        # node_id → node dict
+        self._nodes = {}            # node_id → node dict
         self._edges = []
-        self._emit = None       # set to socketio.emit by app.py
-        self._node_state = {}   # node_id → state dict (stateful behavior nodes)
+        self._emit = None           # set to socketio.emit by app.py
+        self._node_state = {}       # node_id → state dict (stateful behavior nodes)
+        self._node_to_scene = {}    # node_id → scene_id
+        self._scene_name_to_id = {} # scene name → scene_id
+        self._active_scene_ids = set()
+        self._on_scene_activation = None  # fn(scene_id, active: bool) — set by app.py for persistence
 
     def set_emit(self, fn):
         self._emit = fn
 
+    def set_activation_callback(self, fn):
+        """Called by app.py so canvas-triggered activation can persist + emit to clients."""
+        self._on_scene_activation = fn
+
     def load_project(self, project):
-        nodes, edges = {}, []
+        nodes, edges, node_to_scene, name_to_id, active_ids = {}, [], {}, {}, set()
         for scene in project.get('scenes', []):
+            sid = scene['id']
+            if scene.get('active', False):
+                active_ids.add(sid)
+            name_to_id[scene.get('name', '')] = sid
             for node in scene.get('nodes', []):
                 nodes[node['id']] = node
+                node_to_scene[node['id']] = sid
             edges.extend(scene.get('edges', []))
         with self._lock:
             self._nodes = nodes
             self._edges = list(edges)
             self._node_state = {}
+            self._node_to_scene = node_to_scene
+            self._scene_name_to_id = name_to_id
+            self._active_scene_ids = active_ids
         return len(nodes), len(edges)
+
+    def activate_scene(self, scene_id, from_canvas=False):
+        with self._lock:
+            self._active_scene_ids.add(scene_id)
+            start_nodes = [
+                nid for nid, sid in self._node_to_scene.items()
+                if sid == scene_id
+                and self._nodes.get(nid, {}).get('data', {}).get('componentType') == 'on_scene_start'
+            ]
+        for node_id in start_nodes:
+            if self._emit:
+                self._emit('node_pulse', {'node_id': node_id})
+            self.process_event(node_id, 'signal', True)
+        if from_canvas and self._on_scene_activation:
+            self._on_scene_activation(scene_id, True)
+
+    def deactivate_scene(self, scene_id, from_canvas=False):
+        with self._lock:
+            self._active_scene_ids.discard(scene_id)
+        if from_canvas and self._on_scene_activation:
+            self._on_scene_activation(scene_id, False)
+
+    def is_scene_active(self, scene_id):
+        with self._lock:
+            return scene_id in self._active_scene_ids
+
+    def get_scene_id_by_name(self, name):
+        with self._lock:
+            return self._scene_name_to_id.get(name)
 
     def get_node_state(self, node_id, defaults=None):
         """Return (and lazily initialise) per-node state dict for stateful behaviors."""
@@ -477,6 +604,7 @@ class GameEngine:
                 node for node in self._nodes.values()
                 if node['data']['componentType'] == device_type
                 and self._params_match(node['data'].get('params', {}), value)
+                and self._node_to_scene.get(node['id']) in self._active_scene_ids
             ]
         results = []
         if isinstance(value, dict):
@@ -516,13 +644,26 @@ class GameEngine:
             # Emit visual pulse events for the edge and target node
             if self._emit:
                 if edge_id:
-                    self._emit('edge_pulse', {'edge_id': edge_id})
+                    self._emit('edge_pulse', {'edge_id': edge_id, 'value': value, 'target_handle': target_handle})
                 self._emit('node_pulse', {'node_id': node['id']})
             comp_type = node['data']['componentType']
+            params    = node['data'].get('params', {})
+
+            # Scene control components — handled inline, no executor needed
+            if comp_type in ('activate_scene', 'deactivate_scene'):
+                scene_name = params.get('scene_name', '').strip()
+                sid = self.get_scene_id_by_name(scene_name)
+                if sid:
+                    if comp_type == 'activate_scene':
+                        self.activate_scene(sid, from_canvas=True)
+                    else:
+                        self.deactivate_scene(sid, from_canvas=True)
+                results.append({'node_id': node['id'], 'type': comp_type})
+                continue
+
             executor  = _EXECUTORS.get(comp_type)
             if not executor:
                 continue
-            params    = node['data'].get('params', {})
             # nid=node['id'] captures correct id per iteration (avoids closure issue)
             propagate = lambda h, v, nid=node['id']: self.process_event(nid, h, v)
             get_state = lambda defaults=None, nid=node['id']: self.get_node_state(nid, defaults)

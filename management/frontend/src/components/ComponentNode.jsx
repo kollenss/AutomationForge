@@ -105,6 +105,164 @@ function RelayStatus({ channel }) {
   )
 }
 
+function RfidSim({ readerId }) {
+  const [uid, setUid] = useState('')
+
+  function scan() {
+    if (!uid.trim()) return
+    fetch('/engine/hardware_event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_type: 'rfid_reader', event: 'card_read', value: { reader_id: readerId, uid: uid.trim().toUpperCase() } }),
+    })
+  }
+
+  return (
+    <div className="cn-encoder-sim cn-rfid-sim">
+      <input
+        className="cn-sim-uid"
+        value={uid}
+        onChange={e => setUid(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') scan() }}
+        placeholder="UID"
+        spellCheck={false}
+      />
+      <button
+        className="cn-sim-btn cn-sim-scan"
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); scan() }}
+        title="Simulate card scan"
+      >Scan</button>
+    </div>
+  )
+}
+
+function UsbSim() {
+  const [kind,  setKind]  = useState('yubikey')
+  const [mount, setMount] = useState('/media/pi/USB')
+
+  function send(action) {
+    const isYubi = kind === 'yubikey'
+    const event  = isYubi
+      ? (action === 'insert' ? 'yubikey_inserted' : 'yubikey_removed')
+      : (action === 'insert' ? 'usb_memory_inserted' : 'usb_memory_removed')
+    const value  = isYubi ? { vendor_id: '1050' } : { mount_point: mount }
+    fetch('/engine/hardware_event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_type: 'usb_device_detector', event, value }),
+    })
+  }
+
+  return (
+    <div className="cn-encoder-sim cn-usb-sim">
+      <select
+        className="cn-sim-select"
+        value={kind}
+        onChange={e => setKind(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+      >
+        <option value="yubikey">YubiKey</option>
+        <option value="usb_memory">USB Memory</option>
+      </select>
+      {kind === 'usb_memory' && (
+        <input
+          className="cn-sim-uid"
+          value={mount}
+          onChange={e => setMount(e.target.value)}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+          placeholder="mount point"
+          spellCheck={false}
+        />
+      )}
+      <div className="cn-sim-row">
+        <button
+          className="cn-sim-btn cn-sim-scan"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); send('insert') }}
+        >Insert</button>
+        <button
+          className="cn-sim-btn"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); send('remove') }}
+        >Remove</button>
+      </div>
+    </div>
+  )
+}
+
+function Max7219Status({ nodeId }) {
+  const [text,      setText]      = useState('')
+  const [scrolling, setScrolling] = useState(false)
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.node_id !== nodeId) return
+      setText(s.text)
+      setScrolling(s.scrolling)
+    }
+    socket.on('max7219_state', onState)
+    return () => socket.off('max7219_state', onState)
+  }, [nodeId])
+
+  return (
+    <div className="cn-display-preview">
+      {scrolling && <span className="cn-display-scroll-icon">▶</span>}
+      <span className={`cn-display-text${text === '' ? ' cn-display-off' : ''}`}>
+        {text === '' ? '--------' : text}
+      </span>
+    </div>
+  )
+}
+
+function EncoderSim({ encoderId }) {
+  function send(event, value) {
+    fetch('/engine/hardware_event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_type: 'ky040_encoder', event, value: { encoder_id: encoderId, ...value } }),
+    })
+  }
+  return (
+    <div className="cn-encoder-sim">
+      <button className="cn-sim-btn" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); send('delta', { delta: -1 }) }} title="Turn left">◀</button>
+      <button className="cn-sim-btn cn-sim-click" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); send('click', {}) }} title="Click">●</button>
+      <button className="cn-sim-btn" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); send('delta', { delta: 1 }) }} title="Turn right">▶</button>
+    </div>
+  )
+}
+
+function TimerStatus({ nodeId, duration }) {
+  const [remaining, setRemaining] = useState(duration)
+  const [running,   setRunning]   = useState(false)
+
+  useEffect(() => {
+    setRemaining(duration)
+  }, [duration])
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.node_id !== nodeId) return
+      setRemaining(s.remaining)
+      setRunning(s.running)
+    }
+    socket.on('timer_state', onState)
+    return () => socket.off('timer_state', onState)
+  }, [nodeId])
+
+  return (
+    <div className={`cn-combo-status ${running ? 'cn-combo-active' : ''}`}>
+      <span className="cn-combo-dot" />
+      <span>{remaining}s</span>
+    </div>
+  )
+}
+
 export default function ComponentNode({ id, data, selected }) {
   const inputs  = data.inputHandles  || []
   const outputs = data.outputHandles || []
@@ -133,6 +291,21 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'ky040_encoder' && (
         <EncoderStatus encoderId={data.params?.encoder_id ?? 1} />
+      )}
+      {data.componentType === 'ky040_encoder' && (
+        <EncoderSim encoderId={data.params?.encoder_id ?? 1} />
+      )}
+      {data.componentType === 'rfid_reader' && (
+        <RfidSim readerId={data.params?.reader_id ?? 1} />
+      )}
+      {data.componentType === 'usb_device_detector' && (
+        <UsbSim />
+      )}
+      {data.componentType === 'max7219' && (
+        <Max7219Status nodeId={id} />
+      )}
+      {data.componentType === 'timer' && (
+        <TimerStatus nodeId={id} duration={data.params?.duration_s ?? 60} />
       )}
 
       {inputs.length > 0 && (

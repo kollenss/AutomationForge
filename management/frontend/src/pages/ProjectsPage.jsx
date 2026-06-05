@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
+import { socket } from '../socket'
 import './ProjectsPage.css'
 
 function formatDate(iso) {
@@ -21,6 +22,9 @@ export default function ProjectsPage() {
   const [newSceneName, setNewSceneName]       = useState('')
   const [showNewScene, setShowNewScene]       = useState(false)
   const [error, setError]               = useState('')
+  const [sceneStates, setSceneStates]   = useState({}) // scene_id → bool
+  const [editingScene, setEditingScene] = useState(null) // scene_id being renamed
+  const [editingName,  setEditingName]  = useState('')
 
   useEffect(() => {
     api.listProjects().then(setProjects).catch(console.error).finally(() => setLoading(false))
@@ -28,11 +32,23 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (projectId) {
-      api.getProject(projectId).then(setActiveProject).catch(() => setActiveProject(null))
+      api.getProject(projectId).then(p => {
+        setActiveProject(p)
+        const states = {}
+        for (const s of (p.scenes || [])) states[s.id] = s.active || false
+        setSceneStates(states)
+      }).catch(() => setActiveProject(null))
     } else {
       setActiveProject(null)
     }
   }, [projectId])
+
+  useEffect(() => {
+    const handler = ({ scene_id, active }) =>
+      setSceneStates(prev => ({ ...prev, [scene_id]: active }))
+    socket.on('scene_state', handler)
+    return () => socket.off('scene_state', handler)
+  }, [])
 
   async function createProject(e) {
     e.preventDefault()
@@ -73,6 +89,31 @@ export default function ProjectsPage() {
     if (!confirm('Delete this scene?')) return
     await api.deleteScene(activeProject.id, sceneId)
     setActiveProject(prev => ({ ...prev, scenes: prev.scenes.filter(s => s.id !== sceneId) }))
+  }
+
+  async function renameScene(sceneId, newName) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    const scene = activeProject.scenes.find(s => s.id === sceneId)
+    if (!scene || scene.name === trimmed) return
+    try {
+      await api.updateScene(activeProject.id, sceneId, { name: trimmed })
+      setActiveProject(prev => ({
+        ...prev,
+        scenes: prev.scenes.map(s => s.id === sceneId ? { ...s, name: trimmed } : s)
+      }))
+    } catch (err) { setError(err.message) }
+  }
+
+  async function toggleSceneActive(sceneId, currentlyActive, e) {
+    e.stopPropagation()
+    try {
+      if (currentlyActive) {
+        await api.deactivateScene(activeProject.id, sceneId)
+      } else {
+        await api.activateScene(activeProject.id, sceneId)
+      }
+    } catch (err) { setError(err.message) }
   }
 
   return (
@@ -167,18 +208,51 @@ export default function ProjectsPage() {
                 ? <p className="pp-muted">No scenes yet. Add one to start designing.</p>
                 : (
                   <div className="pp-scene-grid">
-                    {activeProject.scenes.map(s => (
-                      <div
-                        key={s.id}
-                        className="pp-scene-card"
-                        onClick={() => navigate(`/projects/${activeProject.id}/scenes/${s.id}`)}
-                      >
-                        <div className="pp-scene-icon">◈</div>
-                        <div className="pp-scene-name">{s.name}</div>
-                        <div className="pp-scene-meta">{(s.nodes || []).length} component{(s.nodes || []).length !== 1 ? 's' : ''}</div>
-                        <button className="pp-delete-btn danger" onClick={e => deleteScene(s.id, e)}>✕</button>
-                      </div>
-                    ))}
+                    {activeProject.scenes.map(s => {
+                      const active = sceneStates[s.id] || false
+                      return (
+                        <div
+                          key={s.id}
+                          className={`pp-scene-card ${active ? 'pp-scene-active' : ''}`}
+                          onClick={() => navigate(`/projects/${activeProject.id}/scenes/${s.id}`)}
+                        >
+                          <div className="pp-scene-header">
+                            <span className="pp-scene-icon">◈</span>
+                            <span className={`pp-scene-dot ${active ? 'pp-dot-on' : 'pp-dot-off'}`} title={active ? 'Active' : 'Inactive'} />
+                          </div>
+                          {editingScene === s.id ? (
+                            <input
+                              className="pp-scene-name-input"
+                              autoFocus
+                              value={editingName}
+                              onChange={e => setEditingName(e.target.value)}
+                              onBlur={() => { renameScene(s.id, editingName); setEditingScene(null) }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') { renameScene(s.id, editingName); setEditingScene(null) }
+                                if (e.key === 'Escape') setEditingScene(null)
+                              }}
+                              onClick={e => e.stopPropagation()}
+                              onMouseDown={e => e.stopPropagation()}
+                            />
+                          ) : (
+                            <div
+                              className="pp-scene-name"
+                              title="Click to rename"
+                              onClick={e => { e.stopPropagation(); setEditingScene(s.id); setEditingName(s.name) }}
+                            >{s.name}</div>
+                          )}
+                          <div className="pp-scene-meta">{(s.nodes || []).length} component{(s.nodes || []).length !== 1 ? 's' : ''}</div>
+                          <button
+                            className={`pp-activate-btn ${active ? 'pp-activate-on' : ''}`}
+                            onMouseDown={e => e.stopPropagation()}
+                            onClick={e => toggleSceneActive(s.id, active, e)}
+                          >
+                            {active ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button className="pp-delete-btn danger" onClick={e => deleteScene(s.id, e)}>✕</button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               }

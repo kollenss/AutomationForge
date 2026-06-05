@@ -60,8 +60,8 @@ function EditorInner({ project, scene, library }) {
       setFn(s => { const n = new Set(s); n.delete(id); return n }), duration)
   }
 
-  function addLog(type, id) {
-    const entry = { t: Date.now() - logStartRef.current, type, id }
+  function addLog(type, id, value, targetHandle) {
+    const entry = { t: Date.now() - logStartRef.current, type, id, value, targetHandle }
     const next  = [...logRef.current.slice(-499), entry]
     logRef.current = next
     setLogEntries(next)
@@ -69,7 +69,7 @@ function EditorInner({ project, scene, library }) {
 
   useEffect(() => {
     if (!debugMode) return
-    const onEdgePulse = ({ edge_id }) => { pulse(setActiveEdges, edge_id); addLog('edge', edge_id) }
+    const onEdgePulse = ({ edge_id, value, target_handle }) => { pulse(setActiveEdges, edge_id); addLog('edge', edge_id, value, target_handle) }
     const onNodePulse = ({ node_id }) => { pulse(setActiveNodes, node_id); addLog('node', node_id) }
     socket.on('edge_pulse', onEdgePulse)
     socket.on('node_pulse', onNodePulse)
@@ -114,7 +114,12 @@ function EditorInner({ project, scene, library }) {
     if (!e) return entry.id.slice(-8)
     const src = nodes.find(n => n.id === e.source)
     const tgt = nodes.find(n => n.id === e.target)
-    return `${src?.data.label ?? '?'} → ${tgt?.data.label ?? '?'}`
+    const tgtLabel = tgt?.data.label ?? '?'
+    const handle   = entry.targetHandle
+    const handleLabel = handle
+      ? tgt?.data.inputHandles?.find(h => h.key === handle)?.label ?? handle
+      : null
+    return `${src?.data.label ?? '?'} → ${tgtLabel}${handleLabel ? ` (${handleLabel})` : ''}`
   }
 
   const onConnect = useCallback(params => setEdges(eds => addEdge({ ...params, animated: true }, eds)), [setEdges])
@@ -311,6 +316,13 @@ function EditorInner({ project, scene, library }) {
                       <span className="se-log-t">+{e.t}ms</span>
                       <span className="se-log-icon">{e.type === 'node' ? '◈' : '→'}</span>
                       <span className="se-log-label">{labelFor(e)}</span>
+                      {e.type === 'edge' && e.value != null && (
+                        <span className="se-log-value">
+                          {String(e.value).length > 20
+                            ? String(e.value).slice(0, 20) + '…'
+                            : String(e.value)}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -327,6 +339,7 @@ function EditorInner({ project, scene, library }) {
       <NodeModal
         node={modalNode}
         library={library}
+        scenes={project.scenes || []}
         onChange={updateParam}
         onClose={() => setModalNode(null)}
         onDelete={deleteNode}

@@ -13,6 +13,19 @@ async function req(method, path, body) {
   return res.json()
 }
 
+async function engine(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || res.statusText)
+  }
+  return res.json()
+}
+
 export const api = {
   getComponents:              ()           => req('GET',    '/components'),
   getRelayState:              ()           => req('GET',    '/hardware/relay'),
@@ -25,4 +38,6 @@ export const api = {
   createScene:                (pid, data)  => req('POST',   `/projects/${pid}/scenes`, data),
   updateScene:                (pid, sid, data) => req('PUT', `/projects/${pid}/scenes/${sid}`, data),
   deleteScene:                (pid, sid)   => req('DELETE', `/projects/${pid}/scenes/${sid}`),
+  activateScene:   (pid, sid) => engine('/engine/activate_scene',   { project_id: pid, scene_id: sid }),
+  deactivateScene: (pid, sid) => engine('/engine/deactivate_scene', { project_id: pid, scene_id: sid }),
 }

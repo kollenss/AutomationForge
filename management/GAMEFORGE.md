@@ -218,10 +218,20 @@ Komponenter visar live-status direkt på canvas-kortet via Socket.IO — **ingen
 |---|---|---|
 | `relay_channel` | `relay_state` | Grön/grå prick + ON/OFF |
 | `ky040_encoder` | `encoder_state` | Position-räknare + riktningspil |
+| `combo_lock` | `combo_state` | INACTIVE / PHASE X/4 / FAILED / UNLOCKED |
+| `timer` | `timer_state` | Nedräkning i sekunder, grön dot när aktiv |
+| `max7219` | `max7219_state` | Displaytext i 7-segment-stil på kortet |
 
-**Relay-status** uppdateras vid varje kanaländring (oavsett källa — modal-knappar, engine-event eller direkt API).
+Live-statuses filtreras på `node_id` (utom relay och encoder som filtrerar på kanal/encoder_id).
 
-**Encoder-status** filtreras per `encoder_id` — två kort med olika ID visar egna räknare.
+## Hårdvarusimulering på canvas-kort
+
+Input-komponenter har simuleringskontroller direkt på kortet för att testa utan fysisk hårdvara. POSTar till `/engine/hardware_event` — identiskt med riktiga hårdvaru-events.
+
+| Komponenttyp | Kontroller |
+|---|---|
+| `ky040_encoder` | ◀ (delta -1) · ● (click) · ▶ (delta +1) |
+| `rfid_reader` | UID-textfält + Scan-knapp (Enter fungerar också) |
 
 ## Live-testning i NodeModal
 
@@ -317,6 +327,8 @@ POST /engine/hardware_event   Tar emot { device_type, event, value } från hardw
 POST /engine/event            Skjuter event från specifik nod: { node_id, handle, value }
 POST /engine/trigger          Triggar nod direkt (utan graftraversering): { node_id, value }
 POST /engine/activate         Sätt aktivt projekt: { project_id }
+POST /engine/activate_scene   Aktivera scen: { scene_id, project_id }
+POST /engine/deactivate_scene Deaktivera scen: { scene_id, project_id }
 ```
 
 Engine laddas automatiskt med senast uppdaterade projekt vid start. Om en scenes data sparas och scenen tillhör aktivt projekt laddas grafen om automatiskt.
@@ -344,8 +356,14 @@ hardware_service  ─POST /engine/hardware_event──►  GameEngine
 
 | Event | Payload | Trigger |
 |-------|---------|---------|
-| `relay_state` | `{"1": bool, "2": bool, "3": bool, "4": bool}` | Varje relay-kommando |
+| `relay_state` | `{"1": bool, ...}` | Varje relay-kommando |
 | `encoder_state` | `{device_type, encoder_id, position, delta}` | Varje encoder-steg |
+| `combo_state` | `{node_id, enabled?, phase?, count?, unlocked?, failed?}` | Varje combo_lock-tillståndsändring |
+| `timer_state` | `{node_id, remaining, running}` | Start, varje tick, reset |
+| `max7219_state` | `{node_id, text, scrolling}` | Varje text/show/scroll/clear-kommando |
+| `node_pulse` | `{node_id}` | Nod aktiverades (debug mode) |
+| `edge_pulse` | `{edge_id, value, target_handle}` | Kant traverserades (debug mode) |
+| `scene_state` | `{scene_id, active}` | Scen aktiverades eller deaktiverades |
 
 ### Executors (`engine.py`)
 
@@ -381,21 +399,53 @@ Lägg till ny executor för ny komponenttyp:
 - [x] **KY-040 encoder-modul** — `rotary_encoder.py`, multi-encoder-stöd via ENCODERS-lista
 - [x] **Encoder live-status** — position + riktningspil på canvas-kortet via `encoder_state`
 - [x] **Systemd-services** — pigpiod + hardware-service + gameforge autostart vid boot
+- [x] **Scenaktivering** — `active`-flagga per scen, engine filtrerar hårdvaru-events till aktiva scener
+- [x] **on_scene_start** — Logic-kort som fires en gång när scenen aktiveras
+- [x] **activate_scene / deactivate_scene** — Logic-kort med `scene_select`-dropdown
+- [x] **Terminal Gate** — Logic-kort som styr floor2-terminal via HTTP, tar emot `solved`-event
+- [x] **USB Device Detector-simulering** — dropdown YubiKey/USB Memory + Insert/Remove
+- [x] **Scennamn inline-redigering** — klicka scennamn i ProjectsPage för att byta namn
 
 ### Hårdvarumoduler att lägga till
 
 | Modul | Live-test i GameForge | Engine-event |
 |-------|----------------------|-------------|
-| RFID RC522 | Visa senast läst kort-UID | `{device_type: rfid, event: card_read, value: uid}` |
-| MAX7219 Display | Skicka text/nummer | Output-only, inget event |
-| DFPlayer Mini | Spela spår, volymkontroll | Output-only |
 | NeoPixel Ring | Välj färg, tänd/släck | Output-only |
-| Servo SG90 | Sätt vinkel | Output-only |
 
 ### Platform
 
-- **Scene-dependencies** — definiera vad som triggar scenbyte (utanför canvas-grafen)
 - **Komponentbibliotek: disconnected-indikator** — visa om modul inte är ansluten
+
+---
+
+## Floor 2 Terminal
+
+En fristående Flask-app (`/home/pi/floor2_terminal/terminal_web.py`) på port 8080 som representerar säkerhetsterminalen i Diamond Heist. Startas manuellt vid boot (se CLAUDE.md). Styrs helt av GameForge via HTTP — ingen egen USB-detektering eller relästyrning.
+
+**Flöde:**
+```
+[USB Device Detector]  yubikey_inserted
+        │
+        ▼
+[Terminal Gate]         params: url, password
+  enable ──────────────► POST /enable { password }   → terminal accepterar tangentbord
+  solved ◄──────────────  POST /engine/hardware_event { device_type: terminal_gate, event: solved }
+        │
+        ▼
+[Activate Scene "Floor 3"]
+```
+
+**Terminal-endpoints:**
+
+| Endpoint | Funktion |
+|---|---|
+| `POST /enable` | Aktiverar tangentbord; tar emot `{ password }` — overridar config.json-lösenord |
+| `POST /disable` | Deaktiverar tangentbord, rensar password-override |
+| `GET /api/status` | `{ enabled: bool }` |
+| `POST /api/validate` | Validerar kod; vid rätt svar POSTas `terminal_gate/solved` till GameForge |
+| `GET /api/keys` | SSE-stream av tangentbordstryckningar (filtreras bort när disabled) |
+
+Lösenord i fallback-ordning: 1) `password`-param på Terminal Gate-kortet (skickas vid enable), 2) `/home/pi/modules/config.json`.
 
 ---
 

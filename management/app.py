@@ -24,6 +24,22 @@ socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 engine = GameEngine()
 engine.set_emit(socketio.emit)
 
+
+def _persist_scene_state(scene_id, active):
+    """Persist scene active-flag to JSON and push socket event. Used as engine callback."""
+    if not _active_project_id:
+        return
+    path = _project_path(_active_project_id)
+    if not os.path.exists(path):
+        return
+    project = _read_json(path)
+    scene = next((s for s in project['scenes'] if s['id'] == scene_id), None)
+    if not scene:
+        return
+    scene['active'] = active
+    _write_json(path, project)
+    socketio.emit('scene_state', {'scene_id': scene_id, 'active': active})
+
 HW_SERVICE = 'http://localhost:5101'
 
 _active_project_id = None
@@ -99,6 +115,7 @@ def _autoload_engine():
     _reload_engine(latest)
 
 
+engine.set_activation_callback(_persist_scene_state)
 _autoload_engine()
 
 
@@ -340,6 +357,44 @@ def api_engine_activate():
     project = _read_json(path)
     _reload_engine(project)
     return jsonify({'ok': True, 'project_id': pid})
+
+
+@app.route('/engine/activate_scene', methods=['POST'])
+def api_engine_activate_scene():
+    global _active_project_id
+    body = request.json or {}
+    scene_id   = body.get('scene_id')
+    project_id = body.get('project_id') or _active_project_id
+    if not scene_id or not project_id:
+        return jsonify({'error': 'scene_id and project_id required'}), 400
+    path = _project_path(project_id)
+    if not os.path.exists(path):
+        return jsonify({'error': 'Project not found'}), 404
+    project = _read_json(path)
+    if not any(s['id'] == scene_id for s in project.get('scenes', [])):
+        return jsonify({'error': 'Scene not found'}), 404
+    _persist_scene_state(scene_id, True)
+    engine.activate_scene(scene_id)
+    return jsonify({'ok': True, 'scene_id': scene_id, 'active': True})
+
+
+@app.route('/engine/deactivate_scene', methods=['POST'])
+def api_engine_deactivate_scene():
+    global _active_project_id
+    body = request.json or {}
+    scene_id   = body.get('scene_id')
+    project_id = body.get('project_id') or _active_project_id
+    if not scene_id or not project_id:
+        return jsonify({'error': 'scene_id and project_id required'}), 400
+    path = _project_path(project_id)
+    if not os.path.exists(path):
+        return jsonify({'error': 'Project not found'}), 404
+    project = _read_json(path)
+    if not any(s['id'] == scene_id for s in project.get('scenes', [])):
+        return jsonify({'error': 'Scene not found'}), 404
+    _persist_scene_state(scene_id, False)
+    engine.deactivate_scene(scene_id)
+    return jsonify({'ok': True, 'scene_id': scene_id, 'active': False})
 
 
 @app.route('/engine/trigger', methods=['POST'])

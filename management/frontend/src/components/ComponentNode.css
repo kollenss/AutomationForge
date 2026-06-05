@@ -108,3 +108,54 @@
 .cn-combo-active   .cn-combo-dot { box-shadow: 0 0 5px #22c55e88; }
 .cn-combo-failed   .cn-combo-dot { box-shadow: 0 0 5px #ef444488; }
 .cn-combo-unlocked .cn-combo-dot { box-shadow: 0 0 5px #f59e0b88; }
+
+.cn-encoder-sim {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 5px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--node-color) 20%, transparent);
+}
+.cn-sim-btn {
+  background: color-mix(in srgb, var(--node-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--node-color) 40%, transparent);
+  color: var(--text); border-radius: 4px;
+  width: 26px; height: 22px; font-size: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s;
+}
+.cn-sim-btn:hover  { background: color-mix(in srgb, var(--node-color) 30%, transparent); }
+.cn-sim-btn:active { background: color-mix(in srgb, var(--node-color) 50%, transparent); }
+.cn-sim-click { width: 22px; font-size: 8px; color: var(--muted); }
+.cn-rfid-sim  { gap: 5px; }
+.cn-sim-uid {
+  flex: 1; min-width: 0;
+  background: color-mix(in srgb, var(--node-color) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--node-color) 35%, transparent);
+  color: var(--text); border-radius: 4px;
+  padding: 2px 5px; font-size: 10px; font-family: monospace;
+  letter-spacing: .05em;
+}
+.cn-sim-uid::placeholder { color: var(--muted); }
+.cn-sim-scan { width: auto; padding: 0 8px; font-size: 10px; }
+.cn-usb-sim { flex-direction: column; align-items: stretch; gap: 5px; }
+.cn-sim-row { display: flex; gap: 6px; }
+.cn-sim-row .cn-sim-btn { flex: 1; width: auto; height: 22px; }
+.cn-sim-select {
+  background: color-mix(in srgb, var(--node-color) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--node-color) 35%, transparent);
+  color: var(--text); border-radius: 4px;
+  padding: 2px 5px; font-size: 10px; cursor: pointer;
+}
+
+.cn-display-preview {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--node-color) 20%, transparent);
+  background: #0a0a0a; border-radius: 0 0 6px 6px;
+}
+.cn-display-scroll-icon { font-size: 8px; color: #f97316; flex-shrink: 0; }
+.cn-display-text {
+  font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 3px; color: #f97316;
+  text-shadow: 0 0 6px #f9731688;
+}
+.cn-display-off { color: #2a1a0a; text-shadow: none; }

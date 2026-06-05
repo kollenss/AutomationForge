@@ -6,6 +6,66 @@
       "color": "#8b5cf6",
       "components": [
         {
+          "type": "activate_scene",
+          "label": "Activate Scene",
+          "subtitle": "Scene control",
+          "color": "#10b981",
+          "icon": "▶",
+          "display_param": "scene_name",
+          "params": [
+            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": ""}
+          ],
+          "inputs": [
+            {"key": "trigger", "label": "Trigger", "description": "Activates the named scene when any signal arrives"}
+          ],
+          "outputs": []
+        },
+        {
+          "type": "deactivate_scene",
+          "label": "Deactivate Scene",
+          "subtitle": "Scene control",
+          "color": "#ef4444",
+          "icon": "⏹",
+          "display_param": "scene_name",
+          "params": [
+            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": ""}
+          ],
+          "inputs": [
+            {"key": "trigger", "label": "Trigger", "description": "Deactivates the named scene when any signal arrives"}
+          ],
+          "outputs": []
+        },
+        {
+          "type": "terminal_gate",
+          "label": "Terminal Gate",
+          "subtitle": "Floor 2 terminal",
+          "color": "#0ea5e9",
+          "icon": "⌨",
+          "params": [
+            {"key": "url",      "label": "Terminal URL",    "type": "text",     "default": "http://localhost:8080"},
+            {"key": "password", "label": "Override Code",   "type": "password", "default": ""}
+          ],
+          "inputs": [
+            {"key": "enable",  "label": "Enable",  "description": "Enables keyboard input on the terminal"},
+            {"key": "disable", "label": "Disable", "description": "Disables keyboard input and resets to waiting screen"}
+          ],
+          "outputs": [
+            {"key": "solved", "label": "Code Correct", "description": "Fires when the correct override code is entered"}
+          ]
+        },
+        {
+          "type": "on_scene_start",
+          "label": "On Scene Start",
+          "subtitle": "Scene event",
+          "color": "#10b981",
+          "icon": "🚀",
+          "params": [],
+          "inputs": [],
+          "outputs": [
+            {"key": "signal", "label": "Signal", "description": "Fires once when the scene is activated"}
+          ]
+        },
+        {
           "type": "combo_lock",
           "label": "Combo Lock",
           "subtitle": "Rotary combination",
@@ -121,6 +181,23 @@
           "outputs": [
             {"key": "tick",    "label": "Tick (each second)", "description": "Fires once per second while the timer is running"},
             {"key": "expired", "label": "Time Up",            "description": "Fires when the countdown reaches zero"}
+          ]
+        },
+        {
+          "type": "set_value",
+          "label": "Set Value",
+          "subtitle": "Fixed output value",
+          "color": "#8b5cf6",
+          "icon": "📌",
+          "display_param": "value",
+          "params": [
+            {"key": "value", "label": "Value", "type": "text", "default": ""}
+          ],
+          "inputs": [
+            {"key": "trigger", "label": "Trigger", "description": "Any incoming signal triggers the output"}
+          ],
+          "outputs": [
+            {"key": "out", "label": "Value Out", "description": "Emits the configured value"}
           ]
         },
         {

@@ -17,8 +17,10 @@ Källkoden redigeras **lokalt på Windows-klienten** via Samba-share:
 - `Z:` är en nätverksdisk monterad mot Pi:ns `/home/pi/management/`
 
 **Använd alltid `Z:\management\...` som sökväg** när du läser eller redigerar filer.  
-Git-kommandon (`git push` etc.) körs på **Windows-klienten** (inte via SSH).  
-Bygge och `systemctl restart` körs via **SSH MCP** på Pi:n.
+Git-kommandon (`git push` etc.) körs via **Bash-verktyget** direkt på Windows-klienten: `cd /z && git push`.  
+Z:-shatten är monterad på Windows-maskinen — Bash-verktyget kör där och har tillgång till den.  
+**Använd aldrig SSH MCP för git push.**  
+Bygge (`npm run build`) och `systemctl restart` körs via **SSH MCP** på Pi:n.
 
 ## Serveråtkomst
 
@@ -120,9 +122,10 @@ HW-modul callback (ex. knapp trycks)
   → Socket.IO push till frontend (separat, inte i den tidskritiska kedjan)
 
 Signal flow-visualisering (Debug mode):
-  node_pulse  { node_id }  — nod aktiverades (källa eller mål)
-  edge_pulse  { edge_id }  — kant traverserades
+  node_pulse  { node_id }                                    — nod aktiverades
+  edge_pulse  { edge_id, value, target_handle }             — kant traverserades, inkl. värde och målhandtag
   Frontend lyssnar endast när Debug ON (toggle i SceneEditor-headern, sparas i localStorage).
+  Signal Log visar: tidsstämpel, kant/nod-label, target handle-label, signalvärde (trunkerat till 20 tecken).
   Signal Log spelar in events (max 500) och kan spelas upp i slow-motion (0.1×–1×).
 ```
 
@@ -135,7 +138,13 @@ Signal flow-visualisering (Debug mode):
 | `combo_lock` | `_exec_combo_lock` | ✅ implementerad |
 | `dfplayer` | `_exec_dfplayer` | ✅ implementerad |
 | `max7219` | `_exec_max7219` | ✅ implementerad |
-| `password_lock`, `sequence`, `timer` | saknas | ⏳ finns i library, ej i engine |
+| `servo` | `_exec_servo` | ✅ implementerad |
+| `timer` | `_exec_timer` | ✅ implementerad |
+| `set_value` | `_exec_set_value` | ✅ implementerad |
+| `terminal_gate` | `_exec_terminal_gate` | ✅ implementerad |
+| `activate_scene`, `deactivate_scene` | inline i `process_event` | ✅ implementerad |
+| `on_scene_start` | ingen executor (fires externt) | ✅ implementerad |
+| `password_lock`, `sequence` | saknas | ⏳ finns i library, ej i engine |
 
 ### Executor-signatur
 
@@ -187,3 +196,76 @@ Både `component_library.json` och `get_components()` på Pi använder samma sch
 2. Skriv `_exec_<type>()` i `engine.py` + registrera i `_EXECUTORS`
 3. Starta om hardware-service + gameforge (hårdvarumodulen laddas automatiskt)
 4. Bygg React om live-status på kortet behövs (`ComponentNode.jsx`)
+
+---
+
+## Canvas-kort: live-status och simulering
+
+### Live-status per komponenttyp
+
+| Komponenttyp | Socket-event | Vad visas på kortet |
+|---|---|---|
+| `relay_channel` | `relay_state` | Grön/grå prick + ON/OFF |
+| `ky040_encoder` | `encoder_state` | Position + riktningspil |
+| `combo_lock` | `combo_state` | INACTIVE / PHASE X/4 / FAILED / UNLOCKED |
+| `timer` | `timer_state` | Återstående sekunder, grön dot när aktiv |
+| `max7219` | `max7219_state` | Displayinnehåll i 7-segment-stil (orange text på svart) |
+
+Nya live-statuses läggs till i `ComponentNode.jsx`:
+1. Skriv en React-komponent som lyssnar på relevant socket-event, filtrerar på `node_id`
+2. Emita eventet från `_exec_<type>()` i `engine.py` med `emit('event_name', {'node_id': node_id, ...})`
+3. Rendera komponenten i `ComponentNode` villkorligt på `data.componentType`
+4. Lägg till CSS i `ComponentNode.css` (återanvänd `.cn-combo-status`-mönstret)
+
+### Hårdvarusimulering (utan fysisk hårdvara)
+
+Simuleringsknappar på canvas-kortet låter dig köra hela engine-kedjan utan inkopplad hårdvara. De POSTar till `/engine/hardware_event` — samma flöde som riktig hårdvara.
+
+| Komponenttyp | Simuleringskontroller |
+|---|---|
+| `ky040_encoder` | ◀ (delta -1), ● (click), ▶ (delta +1) |
+| `rfid_reader` | UID-textfält + Scan-knapp |
+| `usb_device_detector` | Dropdown (YubiKey / USB Memory) + Insert + Remove |
+
+**Viktigt:** Knappar i canvas-kort måste stoppa event-propagation på både `onMouseDown` och `onClick` för att inte öppna NodeModal:
+```jsx
+<button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); doSomething() }}>
+```
+
+Lägg till ny simulering:
+1. Skriv en `<TypeSim>`-komponent i `ComponentNode.jsx`
+2. Rendera den villkorligt på `data.componentType` i `ComponentNode`
+3. POST-payload: `{ device_type, event, value: { ...params, ...eventData } }`
+
+### Set Value — asynkron propagering
+`_exec_set_value` propagerar med 50 ms fördröjning (`threading.Timer`) så att kortets pulse-animation hinner renderas innan nedströmsnoder aktiveras. Utan fördröjningen batchas React-uppdateringarna och kortet glöder inte.
+
+### Scenaktivering
+
+Scener har ett `active: bool`-fält i project JSON. Bara aktiva sceners noder exekveras — hardware events ignoreras för inaktiva scener.
+
+```
+POST /engine/activate_scene   { scene_id, project_id }
+POST /engine/deactivate_scene { scene_id, project_id }
+```
+
+Socket.IO-event: `scene_state { scene_id, active }` — emittas vid förändring.  
+ProjectsPage lyssnar på `scene_state` och uppdaterar grön/grå dot + Activate-knapp per scen i realtid.
+
+**Nya param-typen `scene_select`** i `component_library.json`: renderas som dropdown med projektets scener. NodeModal tar emot `scenes`-prop från SceneEditorPage.
+
+**Engine-metoder:** `activate_scene()`, `deactivate_scene()`, `get_scene_id_by_name()`, `set_activation_callback(fn)` — callback sätts av `app.py` (`_persist_scene_state`) för att spara till JSON + emittera socket-event.
+
+### Floor 2 Terminal (`/home/pi/floor2_terminal/terminal_web.py`)
+
+Fristående Flask-app på port 8080. Styrs av GameForge via HTTP — ingen egen USB-detektering eller relästyrning.
+
+| Endpoint | Funktion |
+|---|---|
+| `POST /enable` | Aktiverar tangentbord, tar emot `{ password }` (override av config.json) |
+| `POST /disable` | Deaktiverar tangentbord, rensar password-override |
+| `GET /api/status` | `{ enabled: bool }` |
+| `POST /api/validate` | Validerar kod, POSTar `terminal_gate/solved` till GameForge vid rätt kod |
+| `GET /api/keys` | SSE-stream av tangentbordstryckningar (endast när enabled) |
+
+Terminalen startar alltid i `enabled: false`. GameForge `terminal_gate`-kortet skickar enable/disable via dess executor.

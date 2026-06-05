@@ -102,7 +102,7 @@ const LIVE_COMPONENTS = {
   rfid_reader:   ({ params }) => <RfidLive  params={params} />,
 }
 
-export default function NodeModal({ node, library, onChange, onClose, onDelete }) {
+export default function NodeModal({ node, library, scenes, onChange, onClose, onDelete }) {
   if (!node || !library) return null
 
   const allComps = library.categories.flatMap(c => c.components)
@@ -136,7 +136,17 @@ export default function NodeModal({ node, library, onChange, onClose, onDelete }
             {def.params.map(p => (
               <div key={p.key} className="nm-field">
                 <label>{p.label}</label>
-                {p.type === 'select' ? (
+                {p.type === 'scene_select' ? (
+                  <select
+                    value={node.data.params?.[p.key] ?? ''}
+                    onChange={e => onChange(node.id, p.key, e.target.value)}
+                  >
+                    <option value="">— select scene —</option>
+                    {(scenes || []).map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                ) : p.type === 'select' ? (
                   <select
                     value={node.data.params?.[p.key] ?? p.default}
                     onChange={e => onChange(node.id, p.key, e.target.value)}

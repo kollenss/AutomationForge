@@ -283,9 +283,10 @@ Le Cœur Bleu. Your grandmother's heart. Take it home, Nova.
 
 | Priority | Tracks | Reason |
 |---|---|---|
-| 🔴 **Must have** | 0008–0022 | Triggered by game events — silence = broken puzzle |
+| 🔴 **Must have** | 0008–0020, 0022 | Triggered by game events — silence = broken puzzle |
 | 🟡 **Nice to have** | 0006 | Briefcase opens — atmospheric but skippable |
-| ⚪ **Skip if tight** | 0007 | Full briefing — tell it verbally if needed |
+| ⚪ **Skip** | 0007 | Full briefing — tell it verbally |
+| ⚪ **Skip** | 0021 | Inactivity trigger — not built in canvas yet |
 
 ---
 
@@ -294,6 +295,8 @@ Le Cœur Bleu. Your grandmother's heart. Take it home, Nova.
 | Track | Script done | Recorded | On SD card |
 |---|---|---|---|
 | 0001–0005 | ✅ | ✅ | ✅ |
-| 0006 | ✅ | ❌ | ❌ |
-| 0007 | ✅ | ❌ | ❌ |
-| 0008–0022 | ✅ | ❌ | ❌ |
+| 0006 | ✅ | ⚪ skip | ⚪ skip |
+| 0007 | ✅ | ⚪ skip | ⚪ skip |
+| 0008–0020 | ✅ | ❌ | ❌ |
+| 0021 | ✅ | ⚪ skip | ⚪ skip |
+| 0022 | ✅ | ❌ | ❌ |

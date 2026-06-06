@@ -1,6 +1,6 @@
 # Diamond Heist — GPIO Pin Map
 ## Raspberry Pi 3B (EN Pi styr ALLT — Våning 1, 2 och 3)
-### Senast uppdaterad: 2026-05
+### Senast uppdaterad: 2026-06
 
 ---
 
@@ -91,6 +91,8 @@ Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       WS2812B strip 10 LED — rpi_ws28
 |---|---|---|---|
 | USB | Denkovi 4-relay board | pylibftdi (FT245RL) | `/dev/ttyUSB0` (via udev-regel) |
 | USB | DFPlayer Mini (FT232RL) | pyserial | `/dev/ttyUSB1` |
+| USB | SEM USB Keyboard (Floor 2 terminal) | evdev | `/dev/input/by-id/usb-SEM_USB_Keyboard-event-kbd` |
+| USB | YubiKey / USB-minne | usb_device_detector.py | detekteras via `lsusb` + `findmnt` |
 
 > **Notera:** udev-regel unbindar `ftdi_sio` för relay-boardet — annars kräver pylibftdi root.
 

@@ -166,19 +166,11 @@ Wraith in position. Uploading still image to the elevator camera feed. Stand by.
 
 ---
 
-**0012 — Wraith** | After LED blinks red | *light radio static*
+**0012 — Wraith** | After LED blinks red | *light radio static* — *(0012 + 0013 merged)*
 ```
-Done.
+(flat, no emotion) Done. The camera shows a still image so we should be invisible like air. I also managed to disable the doorlock. See if it worked.
 ```
-> One word. Completely flat. No emotion — that is correct for Wraith.
-
----
-
-**0013 — Wraith** | After LED turns green | *light radio static*
-```
-Trying to disable the server room lock... Lock's open.
-```
-> Pause on the `...` — she's working while she speaks. Brief silence before "Lock's open."
+> Tracks 0012 and 0013 merged. LED green sequence plays after duration_s.
 
 ---
 
@@ -265,8 +257,7 @@ Le Cœur Bleu. Your grandmother's heart. Take it home, Nova.
 | 0009 | Floor 1 | Cardinal | "Stop. Do not go there." |
 | 0010 | Floor 1 | Ghost + Guard | Reception dialogue |
 | 0011 | Floor 1 | Wraith | "Uploading still image. Stand by." |
-| 0012 | Floor 1 | Wraith | "Done." |
-| 0013 | Floor 1 | Wraith | "Server room lock is open." |
+| 0012 | Floor 1 | Wraith | "Done. Camera still image... doorlock disabled." *(0012+0013 merged)* |
 | 0014 | Floor 1 | Circuit | "I have the key. Move to elevator." |
 | 0015 | Floor 2 | Cardinal | "You're in. Find the alarm controls." |
 | 0016 | Floor 2 | Cardinal | "Right page, wrong line." |

@@ -52,11 +52,18 @@ class Device:
         self._reader = None
 
         try:
-            import mfrc522
+            import mfrc522, spidev
             self._reader = mfrc522.SimpleMFRC522()
+            # mfrc522 library does not enable the antenna on init — do it manually
+            _spi = spidev.SpiDev()
+            _spi.open(0, 0)
+            _spi.max_speed_hz = 1000000
+            _txctrl = _spi.xfer2([0x6E | 0x80, 0x00])[1]  # read TxControlReg (0x14)
+            _spi.xfer2([0x28, _txctrl | 0x03])              # write TxControlReg with TX1/TX2 on
+            _spi.close()
             t = threading.Thread(target=self._poll_loop, daemon=True, name='rfid-poll')
             t.start()
-            print('[rfid] RC522 started — CE0 (GPIO8), RST=GPIO25')
+            print('[rfid] RC522 started — CE0 (GPIO8), RST=GPIO25, antenna ON')
         except Exception as e:
             print(f'[rfid] hardware init failed ({e}) — stub mode active')
 

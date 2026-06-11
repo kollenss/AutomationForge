@@ -625,6 +625,55 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
         threading.Thread(target=_run, daemon=True).start()
 
 
+def _exec_if_else(node_id, params, handle, value, emit, propagate, get_state):
+    """Compare the incoming value against a condition and route to then/else.
+
+    Params:
+        operator  — equals | contains | starts_with | ends_with | greater_than | less_than
+        operand   — the value to compare against
+        case_sensitive — '1' or '0' (default '0')
+    """
+    operator       = params.get('operator', 'equals')
+    operand        = params.get('operand', '')
+    case_sensitive = params.get('case_sensitive', '0') == '1'
+
+    lhs = str(value).strip()
+    rhs = operand.strip()
+
+    if not case_sensitive:
+        lhs_cmp = lhs.lower()
+        rhs_cmp = rhs.lower()
+    else:
+        lhs_cmp = lhs
+        rhs_cmp = rhs
+
+    if operator == 'equals':
+        result = lhs_cmp == rhs_cmp
+    elif operator == 'contains':
+        result = rhs_cmp in lhs_cmp
+    elif operator == 'starts_with':
+        result = lhs_cmp.startswith(rhs_cmp)
+    elif operator == 'ends_with':
+        result = lhs_cmp.endswith(rhs_cmp)
+    elif operator == 'greater_than':
+        try:
+            result = float(lhs) > float(rhs)
+        except ValueError:
+            result = False
+    elif operator == 'less_than':
+        try:
+            result = float(lhs) < float(rhs)
+        except ValueError:
+            result = False
+    else:
+        result = False
+
+    if result:
+        propagate('then', value)
+    else:
+        propagate('else', value)
+
+
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
@@ -639,6 +688,7 @@ _EXECUTORS = {
     'terminal_gate': _exec_terminal_gate,
     'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
+    'if_else':       _exec_if_else,
 }
 
 

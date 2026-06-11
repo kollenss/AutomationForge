@@ -6,6 +6,40 @@
       "color": "#8b5cf6",
       "components": [
         {
+          "type": "if_else",
+          "label": "If / Else",
+          "subtitle": "Conditional branch",
+          "color": "#8b5cf6",
+          "icon": "⚖",
+          "display_param": "operand",
+          "params": [
+            {
+              "key": "operator",
+              "label": "Condition",
+              "type": "select",
+              "default": "equals",
+              "options": [
+                {"value": "equals",      "label": "= equals"},
+                {"value": "contains",    "label": "contains"},
+                {"value": "starts_with", "label": "starts with"},
+                {"value": "ends_with",   "label": "ends with"},
+                {"value": "greater_than","label": "> greater than"},
+                {"value": "less_than",   "label": "< less than"}
+              ]
+            },
+            {"key": "operand",        "label": "Compare to",      "type": "text",   "default": ""},
+            {"key": "case_sensitive", "label": "Case sensitive",  "type": "select", "default": "0",
+             "options": [{"value": "0", "label": "No"}, {"value": "1", "label": "Yes"}]}
+          ],
+          "inputs": [
+            {"key": "value", "label": "Value", "description": "The value to test — connect from any output"}
+          ],
+          "outputs": [
+            {"key": "then", "label": "Then (true)",  "description": "Fires with the input value when the condition is true"},
+            {"key": "else", "label": "Else (false)", "description": "Fires with the input value when the condition is false"}
+          ]
+        },
+        {
           "type": "activate_scene",
           "label": "Activate Scene",
           "subtitle": "Scene control",

@@ -797,6 +797,13 @@ class GameEngine:
             import os; os.replace(tmp, path)
         except Exception as e:
             print(f'[engine] could not save unlock state: {e}')
+
+    @staticmethod
+    def _compute_cascades(nodes, edges):
+        """BFS from each if_else node's then/else outputs SEPARATELY.
+        Each branch forms its own cascade keyed by (node_id, 'then'|'else').
+        Stops at other if_else nodes (they form their own gate).
+        Returns (cascades dict, flat gated set).
         """
         adj = {}
         for edge in edges:

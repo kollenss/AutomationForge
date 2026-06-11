@@ -1502,9 +1502,9 @@
 </ul>
 <h2 id="software-dependencies">Software dependencies<a class="headerlink" href="#software-dependencies" title="Permanent link">&para;</a></h2>
 <h3 id="system-packages">System packages<a class="headerlink" href="#system-packages" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3-pip<span class="w"> </span>python3-venv<span class="w"> </span>pigpio<span class="w"> </span>git<span class="w"> </span>nodejs<span class="w"> </span>npm
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3-pip<span class="w"> </span>python3-venv<span class="w"> </span>python3-setuptools<span class="w"> </span>git<span class="w"> </span>unzip<span class="w"> </span>nodejs<span class="w"> </span>npm
 </code></pre></div>
-<p><code>pigpio</code> provides the <code>pigpiod</code> daemon. <code>nodejs</code> and <code>npm</code> are only needed if you want to rebuild the React frontend from source.</p>
+<p><code>pigpio</code> must be built from source on Bookworm (not available via apt — see <a href="../installation/">Installation</a>). <code>nodejs</code> and <code>npm</code> are only needed if you want to rebuild the React frontend from source.</p>
 <h3 id="python-packages">Python packages<a class="headerlink" href="#python-packages" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip3<span class="w"> </span>install<span class="w"> </span>flask<span class="w"> </span>flask-socketio<span class="w"> </span>pylibftdi<span class="w"> </span>mfrc522<span class="w"> </span>RPi.GPIO<span class="w"> </span>pigpio
 </code></pre></div>

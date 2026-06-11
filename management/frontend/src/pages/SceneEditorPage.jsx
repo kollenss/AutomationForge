@@ -172,7 +172,8 @@ function EditorInner({ project, scene, library }) {
     return `${src?.data.label ?? '?'} → ${tgtLabel}${handleLabel ? ` (${handleLabel})` : ''}`
   }
 
-  const onConnect = useCallback(params => setEdges(eds => addEdge({ ...params, animated: true }, eds)), [setEdges])
+  const onConnect = useCallback(params => setEdges(eds => addEdge(
+    { ...params, type: 'smoothstep', animated: true }, eds)), [setEdges])
 
   // Native DOM listeners bypass React Flow's internal event handling
   useEffect(() => {
@@ -278,14 +279,16 @@ function EditorInner({ project, scene, library }) {
   }, [nodes, edges])
 
   const pulseDur = replaying ? `${Math.round(800 / replaySpeed)}ms` : '600ms'
-  const displayEdges = edges.map(e =>
-    activeEdges.has(e.id)
-      ? { ...e, animated: true, style: { ...e.style, stroke: '#a78bfa', strokeWidth: 2.5 } }
-      : e
-  )
+  const displayEdges = edges.map(e => ({
+    ...e,
+    type: 'smoothstep',
+    ...(activeEdges.has(e.id)
+      ? { animated: true, style: { ...e.style, stroke: '#a78bfa', strokeWidth: 2.5 } }
+      : {}),
+  }))
   const displayNodes = nodes.map(n => ({
     ...n,
-    data: { ...n.data, isActive: activeNodes.has(n.id), pulseDur },
+    data: { ...n.data, isActive: activeNodes.has(n.id), pulseDur, layoutDir },
   }))
 
   return (
@@ -330,6 +333,7 @@ function EditorInner({ project, scene, library }) {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
+            defaultEdgeOptions={{ type: 'smoothstep', animated: true }}
             fitView
             deleteKeyCode="Delete"
           >

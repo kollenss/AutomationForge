@@ -410,6 +410,14 @@ function TimerStatus({ nodeId, duration }) {
 export default function ComponentNode({ id, data, selected }) {
   const inputs  = data.inputHandles  || []
   const outputs = data.outputHandles || []
+  const tb = data.layoutDir === 'TB'
+
+  const inPos  = tb ? Position.Top    : Position.Left
+  const outPos = tb ? Position.Bottom : Position.Right
+  const inClass  = tb ? 'cn-handle-top'    : 'cn-handle-left'
+  const outClass = tb ? 'cn-handle-bottom' : 'cn-handle-right'
+  const inSection  = tb ? 'cn-handles cn-inputs cn-handles-top'    : 'cn-handles cn-inputs'
+  const outSection = tb ? 'cn-handles cn-outputs cn-handles-bottom' : 'cn-handles cn-outputs'
 
   const displayValue = data.displayParam ? data.params?.[data.displayParam] : null
 
@@ -486,10 +494,10 @@ export default function ComponentNode({ id, data, selected }) {
       )}
 
       {inputs.length > 0 && (
-        <div className="cn-handles cn-inputs">
+        <div className={inSection}>
           {inputs.map(h => (
-            <div key={h.key} className="cn-handle-row cn-handle-left">
-              <Handle type="target" position={Position.Left} id={h.key} className="cn-handle" />
+            <div key={h.key} className={`cn-handle-row ${inClass}`}>
+              <Handle type="target" position={inPos} id={h.key} className="cn-handle" />
               <span className="cn-handle-label" title={h.description}>{h.label}</span>
             </div>
           ))}
@@ -497,11 +505,11 @@ export default function ComponentNode({ id, data, selected }) {
       )}
 
       {outputs.length > 0 && (
-        <div className="cn-handles cn-outputs">
+        <div className={outSection}>
           {outputs.map(h => (
-            <div key={h.key} className="cn-handle-row cn-handle-right">
+            <div key={h.key} className={`cn-handle-row ${outClass}`}>
               <span className="cn-handle-label" title={h.description}>{h.label}</span>
-              <Handle type="source" position={Position.Right} id={h.key} className="cn-handle" />
+              <Handle type="source" position={outPos} id={h.key} className="cn-handle" />
             </div>
           ))}
         </div>

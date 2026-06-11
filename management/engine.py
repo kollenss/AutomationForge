@@ -756,7 +756,8 @@ class GameEngine:
 
     @staticmethod
     def _compute_cascades(nodes, edges):
-        """BFS from each if_else node's then/else outputs.
+        """BFS from each if_else node's then/else outputs SEPARATELY.
+        Each branch forms its own cascade keyed by (node_id, 'then'|'else').
         Stops at other if_else nodes (they form their own gate).
         Returns (cascades dict, flat gated set).
         """
@@ -766,40 +767,40 @@ class GameEngine:
             if src and tgt:
                 adj.setdefault(src, []).append(tgt)
 
-        cascades = {}
+        cascades = {}   # (if_else_node_id, 'then'|'else') → frozenset
         gated    = set()
 
         for node_id, node in nodes.items():
             if node['data']['componentType'] != 'if_else':
                 continue
 
-            # Seed: direct targets of then/else outputs
-            seeds = {
-                e['target'] for e in edges
-                if e.get('source') == node_id
-                and (e.get('sourceHandle') or '').lower() in ('then', 'else')
-                and e.get('target')
-            }
+            for branch in ('then', 'else'):
+                seeds = [
+                    e['target'] for e in edges
+                    if e.get('source') == node_id
+                    and (e.get('sourceHandle') or '').lower() == branch
+                    and e.get('target')
+                ]
 
-            # BFS — don't cross into other if_else nodes
-            visited = set()
-            queue   = list(seeds)
-            while queue:
-                cur = queue.pop()
-                if cur in visited:
-                    continue
-                visited.add(cur)
-                cur_node = nodes.get(cur)
-                if not cur_node:
-                    continue
-                if cur_node['data']['componentType'] == 'if_else':
-                    continue  # another gate — stop here
-                for nxt in adj.get(cur, []):
-                    if nxt not in visited:
-                        queue.append(nxt)
+                # BFS — stop at other if_else nodes (they own their own cascade)
+                visited = set()
+                queue   = list(seeds)
+                while queue:
+                    cur = queue.pop()
+                    if cur in visited:
+                        continue
+                    visited.add(cur)
+                    cur_node = nodes.get(cur)
+                    if not cur_node:
+                        continue
+                    if cur_node['data']['componentType'] == 'if_else':
+                        continue  # another gate — stop here
+                    for nxt in adj.get(cur, []):
+                        if nxt not in visited:
+                            queue.append(nxt)
 
-            cascades[node_id] = frozenset(visited)
-            gated |= visited
+                cascades[(node_id, branch)] = frozenset(visited)
+                gated |= visited
 
         return cascades, gated
 
@@ -926,7 +927,8 @@ class GameEngine:
             and h in ('then', 'else')
         )
         if is_if_else_output:
-            cascade = self._if_else_cascades.get(node_id, frozenset())
+            # Only unlock the cascade for the branch that actually fired (then OR else)
+            cascade = self._if_else_cascades.get((node_id, h), frozenset())
             with self._lock:
                 self._unlocked |= cascade
             for unlocked_nid in cascade:

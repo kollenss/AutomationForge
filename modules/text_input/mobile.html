@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>{{TITLE}}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #141414;
+      --border:  #2a2a2a;
+      --accent:  #c9a84c;
+      --text:    #f0f0f0;
+      --muted:   #888;
+      --success: #22c55e;
+      --error:   #ef4444;
+      --radius:  12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+    }
+    header p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    textarea {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+    }
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    button:active {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      text-align: center;
+      min-height: 1.2em;
+      transition: color 0.3s;
+    }
+    .status.ok    { color: var(--success); }
+    .status.error { color: var(--error); }
+
+    .history {
+      width: 100%;
+      max-width: 420px;
+    }
+    .history h2 {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-item:hover { border-color: var(--accent); color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>{{TITLE}}</h1>
+    <p>Type text and send it to the Pi</p>
+  </header>
+
+  <div class="card">
+    <textarea id="txt" placeholder="{{PLACEHOLDER}}" rows="4" autofocus></textarea>
+    <button id="btn" onclick="sendText()">SEND</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="history" id="historyBox" style="display:none">
+    <h2>Recent</h2>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <script>
+    const INPUT_ID = new URLSearchParams(location.search).get('id') || '1';
+    const history = [];
+
+    async function sendText() {
+      const txt = document.getElementById('txt');
+      const btn = document.getElementById('btn');
+      const status = document.getElementById('status');
+      const text = txt.value.trim();
+      if (!text) return;
+
+      btn.disabled = true;
+      status.className = 'status';
+      status.textContent = 'Sending…';
+
+      try {
+        const res = await fetch('/submit', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text, input_id: INPUT_ID}),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          status.className = 'status ok';
+          status.textContent = '✓ Sent';
+          addHistory(text);
+          txt.value = '';
+          setTimeout(() => { status.textContent = ''; }, 2000);
+        } else {
+          throw new Error('Server error');
+        }
+      } catch (e) {
+        status.className = 'status error';
+        status.textContent = '✗ Failed — check connection';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function addHistory(text) {
+      history.unshift(text);
+      if (history.length > 10) history.pop();
+      const box = document.getElementById('historyBox');
+      const list = document.getElementById('historyList');
+      box.style.display = '';
+      list.innerHTML = history.map(t =>
+        `<div class="history-item" onclick="reuseText(this.dataset.text)" data-text="${t.replace(/"/g,'&quot;')}">${t}</div>`
+      ).join('');
+    }
+
+    function reuseText(text) {
+      document.getElementById('txt').value = text;
+      document.getElementById('txt').focus();
+    }
+
+    // Submit on Ctrl+Enter / Cmd+Enter
+    document.getElementById('txt').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendText();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -19,6 +19,13 @@
 }
 .se-sync-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface2); }
 
+.se-layout-btn {
+  font-size: 12px; padding: 4px 10px; cursor: pointer;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 4px; transition: all .15s;
+}
+.se-layout-btn:hover { color: var(--text); border-color: #38bdf8; background: color-mix(in srgb, #38bdf8 10%, transparent); }
+
 .se-debug-btn {
   font-size: 12px; padding: 4px 10px; cursor: pointer;
   background: var(--surface2); border: 1px solid var(--border);

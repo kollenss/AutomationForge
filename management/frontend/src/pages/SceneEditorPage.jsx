@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import Dagre from '@dagrejs/dagre'
 import {
   ReactFlow, Background, Controls, MiniMap,
   useNodesState, useEdgesState, addEdge, ReactFlowProvider, useReactFlow,
@@ -22,16 +23,53 @@ function uid() {
   })
 }
 
+// Node size estimates for Dagre (actual DOM size unknown at layout time)
+const DAGRE_NODE_W = 220
+const DAGRE_NODE_H = 160
+
+function computeLayout(nodes, edges, direction) {
+  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
+  g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 100, marginx: 40, marginy: 40 })
+  edges.forEach(e => g.setEdge(e.source, e.target))
+  nodes.forEach(n => g.setNode(n.id, { width: DAGRE_NODE_W, height: DAGRE_NODE_H }))
+  Dagre.layout(g)
+  return nodes.map(n => {
+    const pos = g.node(n.id)
+    return { ...n, position: { x: pos.x - DAGRE_NODE_W / 2, y: pos.y - DAGRE_NODE_H / 2 } }
+  })
+}
+
 
 function EditorInner({ project, scene, library }) {
   const navigate = useNavigate()
   const reactFlowWrapper = useRef(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState(scene.nodes || [])
   const [edges, setEdges, onEdgesChange] = useEdgesState(scene.edges || [])
   const [modalNode, setModalNode] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(true)
+
+  // ── Layout direction ───────────────────────────────────────────────────────
+  const [layoutDir, setLayoutDir] = useState(() => localStorage.getItem('gf_layout') || 'LR')
+  const layoutSkip = useRef(false)
+
+  function applyLayout(dir) {
+    layoutSkip.current = true   // don't mark dirty from the setNodes call
+    setNodes(ns => computeLayout(ns, edges, dir))
+    setTimeout(() => {
+      fitView({ padding: 0.12, duration: 400 })
+      layoutSkip.current = false
+    }, 50)
+    setSaved(false)
+  }
+
+  function toggleLayout() {
+    const next = layoutDir === 'LR' ? 'TB' : 'LR'
+    setLayoutDir(next)
+    localStorage.setItem('gf_layout', next)
+    applyLayout(next)
+  }
 
   // ── Signal flow visualization ─────────────────────────────────────────────
   const [debugMode, setDebugMode] = useState(() => localStorage.getItem('gf_debug') === 'true')
@@ -235,6 +273,7 @@ function EditorInner({ project, scene, library }) {
   const isFirst = useRef(true)
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
+    if (layoutSkip.current) return
     setSaved(false)
   }, [nodes, edges])
 
@@ -262,6 +301,12 @@ function EditorInner({ project, scene, library }) {
           <button className="se-sync-btn" onClick={syncNodes}
             title="Update all nodes to the latest component definition">
             ↺ Sync nodes
+          </button>
+          <button
+            className="se-layout-btn"
+            onClick={toggleLayout}
+            title={layoutDir === 'LR' ? 'Switch to vertical layout' : 'Switch to horizontal layout'}>
+            {layoutDir === 'LR' ? '↔ Horizontal' : '↕ Vertical'}
           </button>
           <button
             className={`se-debug-btn ${debugMode ? 'se-debug-on' : ''}`}

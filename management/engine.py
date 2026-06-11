@@ -692,6 +692,7 @@ def _exec_console_log(node_id, params, handle, value, emit, propagate, get_state
     print(f'[LOG {label} #{short_id}] {value}', flush=True)
     if emit:
         emit('console_log', {'node_id': node_id, 'label': label, 'value': str(value)})
+        emit('node_event', {'node_id': node_id, 'label': str(value), 'ok': True})
     propagate('out', value)
 
 

@@ -445,6 +445,9 @@ export default function ComponentNode({ id, data, selected }) {
       {data.componentType === 'rfid_reader' && (
         <RfidSim readerId={data.params?.reader_id ?? 1} />
       )}
+      {data.componentType === 'console_log' && (
+        <LastValue nodeId={id} />
+      )}
       {data.componentType === 'rfid_auth' && (
         <LastValue nodeId={id} />
       )}

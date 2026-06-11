@@ -716,8 +716,9 @@ class GameEngine:
         self._scene_name_to_id = {} # scene name → scene_id
         self._active_scene_ids = set()
         self._on_scene_activation = None  # fn(scene_id, active: bool) — set by app.py for persistence
-        self._if_else_gated = set() # node IDs that start disabled because they are wired from an if_else output
-        self._unlocked = set()      # gated node IDs that have been unlocked this session
+        self._if_else_cascades = {}  # if_else_node_id → frozenset of all downstream nodes it gates
+        self._if_else_gated = set()   # flat set of all gated node IDs
+        self._unlocked = set()        # gated node IDs that have been unlocked this session
 
     def set_emit(self, fn):
         self._emit = fn
@@ -737,15 +738,10 @@ class GameEngine:
                 nodes[node['id']] = node
                 node_to_scene[node['id']] = sid
             edges.extend(scene.get('edges', []))
-        # Nodes that have any incoming wire from an if_else output start disabled.
-        # The if_else wire itself is what unlocks them — no param needed.
-        gated = set()
-        for edge in edges:
-            src = nodes.get(edge.get('source'))
-            if src and src['data']['componentType'] == 'if_else':
-                src_handle = (edge.get('sourceHandle') or '').lower()
-                if src_handle in ('then', 'else'):
-                    gated.add(edge['target'])
+        # Nodes downstream from an if_else output start disabled.
+        # BFS from each if_else's then/else outputs; stop at the next if_else
+        # (it forms its own gate). All nodes in the walk are gated by this if_else.
+        cascades, gated = GameEngine._compute_cascades(nodes, edges)
         with self._lock:
             self._nodes = nodes
             self._edges = list(edges)
@@ -753,9 +749,59 @@ class GameEngine:
             self._node_to_scene = node_to_scene
             self._scene_name_to_id = name_to_id
             self._active_scene_ids = active_ids
+            self._if_else_cascades = cascades
             self._if_else_gated = gated
             self._unlocked = set()
         return len(nodes), len(edges)
+
+    @staticmethod
+    def _compute_cascades(nodes, edges):
+        """BFS from each if_else node's then/else outputs.
+        Stops at other if_else nodes (they form their own gate).
+        Returns (cascades dict, flat gated set).
+        """
+        adj = {}
+        for edge in edges:
+            src, tgt = edge.get('source'), edge.get('target')
+            if src and tgt:
+                adj.setdefault(src, []).append(tgt)
+
+        cascades = {}
+        gated    = set()
+
+        for node_id, node in nodes.items():
+            if node['data']['componentType'] != 'if_else':
+                continue
+
+            # Seed: direct targets of then/else outputs
+            seeds = {
+                e['target'] for e in edges
+                if e.get('source') == node_id
+                and (e.get('sourceHandle') or '').lower() in ('then', 'else')
+                and e.get('target')
+            }
+
+            # BFS — don't cross into other if_else nodes
+            visited = set()
+            queue   = list(seeds)
+            while queue:
+                cur = queue.pop()
+                if cur in visited:
+                    continue
+                visited.add(cur)
+                cur_node = nodes.get(cur)
+                if not cur_node:
+                    continue
+                if cur_node['data']['componentType'] == 'if_else':
+                    continue  # another gate — stop here
+                for nxt in adj.get(cur, []):
+                    if nxt not in visited:
+                        queue.append(nxt)
+
+            cascades[node_id] = frozenset(visited)
+            gated |= visited
+
+        return cascades, gated
 
     def activate_scene(self, scene_id, from_canvas=False):
         with self._lock:
@@ -871,28 +917,30 @@ class GameEngine:
                 if e.get('source') == node_id and (e.get('sourceHandle') or '').lower() == h
             ]
 
-        # Check if this propagation comes from an if_else output — if so, unlock targets
+        # When if_else fires then/else: unlock its entire downstream cascade first,
+        # then let normal propagation handle the direct targets.
         source_node = self._nodes.get(node_id)
         is_if_else_output = (
             source_node is not None
             and source_node['data']['componentType'] == 'if_else'
             and h in ('then', 'else')
         )
+        if is_if_else_output:
+            cascade = self._if_else_cascades.get(node_id, frozenset())
+            with self._lock:
+                self._unlocked |= cascade
+            for unlocked_nid in cascade:
+                if self._emit:
+                    self._emit('if_else_gate_state', {'node_id': unlocked_nid, 'unlocked': True})
 
         results = []
         for node, target_handle, edge_id in targets:
             if not node:
                 continue
 
-            # Topology-based gate: nodes wired from if_else start locked.
-            # The if_else wire unlocks them; any other incoming wire is ignored until unlocked.
             nid = node['id']
-            if is_if_else_output:
-                with self._lock:
-                    self._unlocked.add(nid)
-                if self._emit:
-                    self._emit('if_else_gate_state', {'node_id': nid, 'unlocked': True})
-            elif nid in self._if_else_gated and nid not in self._unlocked:
+            # Block gated nodes that haven't been unlocked yet
+            if nid in self._if_else_gated and nid not in self._unlocked:
                 continue   # still locked — drop this event
 
             # Emit visual pulse events for the edge and target node

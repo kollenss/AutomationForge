@@ -8,20 +8,19 @@
         {
           "type": "gate",
           "label": "Gate",
-          "subtitle": "Locks until triggered",
+          "subtitle": "Unlocks when value matches",
           "color": "#f59e0b",
           "icon": "🚧",
           "display_param": "name",
           "params": [
-            {"key": "name", "label": "Label", "type": "text", "default": "gate"}
+            {"key": "name",  "label": "Label",          "type": "text", "default": "gate"},
+            {"key": "value", "label": "Expected Value", "type": "text", "default": ""}
           ],
           "inputs": [
-            {"key": "trigger", "label": "Unlock",  "description": "Any signal here unlocks the gate permanently — connect from If/Else Then"},
-            {"key": "signal",  "label": "Signal",  "description": "Value to pass through — only flows when gate is open"}
+            {"key": "input", "label": "Input", "description": "Connect from Text Input or RFID — checked against Expected Value"}
           ],
           "outputs": [
-            {"key": "out",    "label": "Out",    "description": "Fires with every Signal value while gate is open"},
-            {"key": "opened", "label": "Opened", "description": "Fires once when gate first unlocks"}
+            {"key": "out", "label": "Out", "description": "Blocked until value matches — then open permanently, passes every signal through"}
           ]
         },
         {

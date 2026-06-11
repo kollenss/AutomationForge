@@ -324,7 +324,8 @@ function EditorInner({ project, scene, library }) {
       </header>
 
       <div className="se-body">
-        <div className="se-canvas-wrap" ref={reactFlowWrapper}>
+        <div className="se-canvas-wrap">
+          <div className="se-canvas-rf" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={displayNodes}
             edges={displayEdges}
@@ -351,6 +352,7 @@ function EditorInner({ project, scene, library }) {
               <div>Drag components from the panel →</div>
             </div>
           )}
+          </div>
 
           {debugMode && (
             <div className="se-log-panel">

@@ -49,7 +49,18 @@ def get_components():
             },
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader'},
         ],
-        'inputs':  [],
+        'inputs':  [
+            {
+                'key': 'enable',
+                'label': 'Enable',
+                'description': 'Activates this reader — connect from If/Else Then or any trigger',
+            },
+            {
+                'key': 'disable',
+                'label': 'Disable',
+                'description': 'Deactivates this reader until re-enabled',
+            },
+        ],
         'outputs': [
             {
                 'key': 'card_read',

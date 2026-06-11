@@ -823,15 +823,22 @@ class GameEngine:
                 and self._params_match(node['data'].get('params', {}), value)
                 and self._node_to_scene.get(node['id']) in self._active_scene_ids
             ]
+            gated   = self._if_else_gated
+            unlocked = self._unlocked
         results = []
         if isinstance(value, dict):
             scalar = value.get('delta', value.get('uid', value))
         else:
             scalar = value
         for node in source_nodes:
+            nid = node['id']
+            # If this source node is wired from an if_else output it starts
+            # disabled — ignore hardware events until unlocked.
+            if nid in gated and nid not in unlocked:
+                continue
             if self._emit:
-                self._emit('node_pulse', {'node_id': node['id']})
-            results.extend(self.process_event(node['id'], h, scalar))
+                self._emit('node_pulse', {'node_id': nid})
+            results.extend(self.process_event(nid, h, scalar))
         return results
 
     @staticmethod

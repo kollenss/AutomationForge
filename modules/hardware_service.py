@@ -33,7 +33,10 @@ CATEGORY_META = {
 
 
 def _load_modules():
-    for path in sorted(SHARED_DIR.glob('*.py')):
+    # Discover modules in flat files AND one level of subdirectories.
+    # A module is any .py file that contains both MANIFEST and Device.
+    candidates = sorted(SHARED_DIR.glob('*.py')) + sorted(SHARED_DIR.glob('*/*.py'))
+    for path in candidates:
         if path.name.startswith('_') or path.name == 'hardware_service.py':
             continue
         try:
@@ -45,6 +48,10 @@ def _load_modules():
         try:
             spec = importlib.util.spec_from_file_location(path.stem, path)
             mod = importlib.util.module_from_spec(spec)
+            # Ensure the module's own directory is importable (for local helpers)
+            mod_dir = str(path.parent)
+            if mod_dir not in sys.path:
+                sys.path.insert(0, mod_dir)
             spec.loader.exec_module(mod)
         except Exception as e:
             print(f'[HW] import error {path.name}: {e}')

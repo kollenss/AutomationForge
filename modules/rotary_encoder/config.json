@@ -1,0 +1,5 @@
+{
+  "clk_gpio": 17,
+  "dt_gpio": 27,
+  "sw_gpio": 22
+}

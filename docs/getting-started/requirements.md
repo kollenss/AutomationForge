@@ -26,10 +26,10 @@
 ### System packages
 
 ```bash
-sudo apt install -y python3-pip python3-venv pigpio git nodejs npm
+sudo apt install -y python3-pip python3-venv python3-setuptools git unzip nodejs npm
 ```
 
-`pigpio` provides the `pigpiod` daemon. `nodejs` and `npm` are only needed if you want to rebuild the React frontend from source.
+`pigpio` must be built from source on Bookworm (not available via apt — see [Installation](installation.md)). `nodejs` and `npm` are only needed if you want to rebuild the React frontend from source.
 
 ### Python packages
 

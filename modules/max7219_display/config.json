@@ -1,0 +1,5 @@
+{
+  "ce_gpio": 7,
+  "spi_bus": 0,
+  "spi_device": 1
+}

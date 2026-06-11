@@ -220,6 +220,69 @@ function Max7219Status({ nodeId }) {
   )
 }
 
+function TextInputStatus({ inputId }) {
+  const [text, setText] = useState('')
+  const [flash, setFlash] = useState(false)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    function onState(s) {
+      if (String(s.input_id) !== String(inputId)) return
+      setText(s.text)
+      setFlash(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setFlash(false), 1500)
+    }
+    socket.on('text_input_state', onState)
+    return () => {
+      socket.off('text_input_state', onState)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [inputId])
+
+  if (!text) return null
+  return (
+    <div className={`cn-text-input-status ${flash ? 'cn-text-input-flash' : ''}`}>
+      <span className="cn-text-input-label">Last:</span>
+      <span className="cn-text-input-value">{text}</span>
+    </div>
+  )
+}
+
+function TextInputSim({ inputId }) {
+  const [val, setVal] = useState('')
+
+  function send() {
+    if (!val.trim()) return
+    fetch('/engine/hardware_event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_type: 'text_input', event: 'text_received', value: { input_id: String(inputId), text: val.trim() } }),
+    })
+    setVal('')
+  }
+
+  return (
+    <div className="cn-encoder-sim cn-rfid-sim">
+      <input
+        className="cn-sim-uid"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') send() }}
+        placeholder="Type text…"
+        spellCheck={false}
+      />
+      <button
+        className="cn-sim-btn cn-sim-scan"
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); send() }}
+      >Send</button>
+    </div>
+  )
+}
+
 function EncoderSim({ encoderId }) {
   function send(event, value) {
     fetch('/engine/hardware_event', {
@@ -306,6 +369,12 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'timer' && (
         <TimerStatus nodeId={id} duration={data.params?.duration_s ?? 60} />
+      )}
+      {data.componentType === 'text_input' && (
+        <TextInputStatus inputId={data.params?.input_id ?? '1'} />
+      )}
+      {data.componentType === 'text_input' && (
+        <TextInputSim inputId={data.params?.input_id ?? '1'} />
       )}
 
       {inputs.length > 0 && (

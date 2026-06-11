@@ -340,6 +340,11 @@ def api_engine_hardware_event():
                 'reader_id': value.get('reader_id', 1),
                 'uid':       value.get('uid', ''),
             })
+        elif device_type == 'text_input' and event == 'text_received':
+            socketio.emit('text_input_state', {
+                'input_id': value.get('input_id', '1'),
+                'text':     value.get('text', ''),
+            })
     return jsonify({'results': results})
 
 

@@ -159,3 +159,18 @@
   text-shadow: 0 0 6px #f9731688;
 }
 .cn-display-off { color: #2a1a0a; text-shadow: none; }
+
+/* Text Input status */
+.cn-text-input-status {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px;
+  background: #0a0a0a; border-radius: 6px;
+  font-size: 11px; max-width: 100%;
+  transition: background 0.3s;
+}
+.cn-text-input-flash { background: #06b6d420; }
+.cn-text-input-label { color: var(--muted); flex-shrink: 0; }
+.cn-text-input-value {
+  color: #06b6d4; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

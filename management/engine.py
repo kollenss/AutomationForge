@@ -719,6 +719,7 @@ class GameEngine:
         self._if_else_cascades = {}  # if_else_node_id → frozenset of all downstream nodes it gates
         self._if_else_gated = set()   # flat set of all gated node IDs
         self._unlocked = set()        # gated node IDs that have been unlocked this session
+        self._unlock_state_path = None  # path to persist unlock state
 
     def set_emit(self, fn):
         self._emit = fn
@@ -742,6 +743,11 @@ class GameEngine:
         # BFS from each if_else's then/else outputs; stop at the next if_else
         # (it forms its own gate). All nodes in the walk are gated by this if_else.
         cascades, gated = GameEngine._compute_cascades(nodes, edges)
+
+        # Restore unlock state from disk so Pi restarts don’t reset puzzle progress
+        state_path = self._unlock_path_for(project)
+        unlocked   = self._load_unlock_state(state_path, gated)
+
         with self._lock:
             self._nodes = nodes
             self._edges = list(edges)
@@ -751,15 +757,46 @@ class GameEngine:
             self._active_scene_ids = active_ids
             self._if_else_cascades = cascades
             self._if_else_gated = gated
-            self._unlocked = set()
+            self._unlocked = unlocked
+            self._unlock_state_path = state_path
         return len(nodes), len(edges)
 
     @staticmethod
-    def _compute_cascades(nodes, edges):
-        """BFS from each if_else node's then/else outputs SEPARATELY.
-        Each branch forms its own cascade keyed by (node_id, 'then'|'else').
-        Stops at other if_else nodes (they form their own gate).
-        Returns (cascades dict, flat gated set).
+    def _unlock_path_for(project):
+        """Derive the unlock-state file path from the project dict."""
+        import os
+        pid  = project.get('id', 'unknown')
+        # project files live at management/data/projects/<id>.json
+        # — replicate the same directory for the state sidecar
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'data', 'projects')
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, f'{pid}_unlock.json')
+
+    @staticmethod
+    def _load_unlock_state(path, gated):
+        """Load persisted unlock set, discarding any IDs no longer in gated."""
+        try:
+            import json as _json
+            with open(path, encoding='utf-8') as f:
+                data = _json.load(f)
+            return set(data.get('unlocked', [])) & gated
+        except Exception:
+            return set()
+
+    def _save_unlock_state(self):
+        """Persist current unlock set to disk (called after every unlock)."""
+        import json as _json
+        path = self._unlock_state_path
+        if not path:
+            return
+        try:
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                _json.dump({'unlocked': list(self._unlocked)}, f)
+            import os; os.replace(tmp, path)
+        except Exception as e:
+            print(f'[engine] could not save unlock state: {e}')
         """
         adj = {}
         for edge in edges:
@@ -828,6 +865,13 @@ class GameEngine:
     def deactivate_scene(self, scene_id, from_canvas=False):
         with self._lock:
             self._active_scene_ids.discard(scene_id)
+            # Re-lock gated nodes belonging to this scene
+            scene_gated = {
+                nid for nid in self._if_else_gated
+                if self._node_to_scene.get(nid) == scene_id
+            }
+            self._unlocked -= scene_gated
+        self._save_unlock_state()
         if from_canvas and self._on_scene_activation:
             self._on_scene_activation(scene_id, False)
 
@@ -931,6 +975,7 @@ class GameEngine:
             cascade = self._if_else_cascades.get((node_id, h), frozenset())
             with self._lock:
                 self._unlocked |= cascade
+            self._save_unlock_state()
             for unlocked_nid in cascade:
                 if self._emit:
                     self._emit('if_else_gate_state', {'node_id': unlocked_nid, 'unlocked': True})

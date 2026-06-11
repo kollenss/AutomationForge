@@ -674,6 +674,42 @@ def _exec_if_else(node_id, params, handle, value, emit, propagate, get_state):
         propagate('else', value)
 
 
+def _exec_gate(node_id, params, handle, value, emit, propagate, get_state):
+    """Signal gate — blocks signals until enabled.
+
+    Params:
+        default_open  — '1' = starts open (default), '0' = starts locked
+
+    Inputs:
+        signal  — the value to pass through when open
+        enable  — open the gate (any signal)
+        disable — close the gate (any signal)
+
+    Outputs:
+        out     — fires with the signal value when gate is open
+        opened  — fires once when gate transitions to open
+        closed  — fires once when gate transitions to closed
+    """
+    default_open = params.get('default_open', '1') == '1'
+    state = get_state({'open': default_open})
+
+    if handle == 'enable':
+        if not state['open']:
+            state['open'] = True
+            if emit:
+                emit('gate_state', {'node_id': node_id, 'open': True})
+            propagate('opened', True)
+    elif handle == 'disable':
+        if state['open']:
+            state['open'] = False
+            if emit:
+                emit('gate_state', {'node_id': node_id, 'open': False})
+            propagate('closed', True)
+    elif handle == 'signal':
+        if state['open']:
+            propagate('out', value)
+
+
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
@@ -689,6 +725,7 @@ _EXECUTORS = {
     'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
     'if_else':       _exec_if_else,
+    'gate':          _exec_gate,
 }
 
 

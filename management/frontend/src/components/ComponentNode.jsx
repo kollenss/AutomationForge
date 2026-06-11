@@ -249,8 +249,31 @@ function Max7219Status({ nodeId }) {
   )
 }
 
-function TextInputStatus({ inputId }) {
-  const [text, setText] = useState('')
+function GateStatus({ nodeId, defaultOpen }) {
+  const [open, setOpen] = useState(defaultOpen !== '0')
+
+  useEffect(() => {
+    setOpen(defaultOpen !== '0')
+  }, [defaultOpen])
+
+  useEffect(() => {
+    function onState(s) {
+      if (s.node_id !== nodeId) return
+      setOpen(s.open)
+    }
+    socket.on('gate_state', onState)
+    return () => socket.off('gate_state', onState)
+  }, [nodeId])
+
+  return (
+    <div className={`cn-relay-status ${open ? 'on' : 'off'}`}>
+      <span className="cn-relay-dot" />
+      {open ? 'OPEN' : 'LOCKED'}
+    </div>
+  )
+}
+
+function TextInputStatus({ inputId }) {  const [text, setText] = useState('')
   const [flash, setFlash] = useState(false)
   const timerRef = useRef(null)
 
@@ -401,6 +424,9 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'timer' && (
         <TimerStatus nodeId={id} duration={data.params?.duration_s ?? 60} />
+      )}
+      {data.componentType === 'gate' && (
+        <GateStatus nodeId={id} defaultOpen={data.params?.default_open ?? '1'} />
       )}
       {data.componentType === 'text_input' && (
         <TextInputStatus inputId={data.params?.input_id ?? '1'} />

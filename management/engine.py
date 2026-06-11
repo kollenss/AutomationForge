@@ -74,8 +74,31 @@ def _exec_relay(node_id, params, handle, value, emit, propagate, get_state):
 
 
 def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
-    if handle and handle.lower() != 'card_read':
+    start_disabled = params.get('start_disabled', False)
+    if isinstance(start_disabled, str):
+        start_disabled = start_disabled in ('true', '1', 'yes')
+    state = get_state({'enabled': not start_disabled})
+
+    h = (handle or 'card_read').lower()
+
+    if h == 'enable':
+        state['enabled'] = True
+        if emit:
+            emit('rfid_auth_state', {'node_id': node_id, 'enabled': True})
         return
+
+    if h == 'disable':
+        state['enabled'] = False
+        if emit:
+            emit('rfid_auth_state', {'node_id': node_id, 'enabled': False})
+        return
+
+    if h != 'card_read':
+        return
+
+    if not state['enabled']:
+        return
+
     valid_uids = {u.strip().upper() for u in params.get('valid_uids', '').split(',') if u.strip()}
     uid = str(value).strip().upper()
     if uid in valid_uids:

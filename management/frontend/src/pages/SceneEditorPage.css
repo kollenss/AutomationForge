@@ -83,8 +83,11 @@
 .se-log-t     { color: var(--muted); min-width: 64px; }
 .se-log-icon  { font-size: 10px; min-width: 12px; }
 .se-log-label { color: var(--text); }
-.se-log-node .se-log-icon { color: #a78bfa; }
-.se-log-edge .se-log-icon { color: #38bdf8; }
+.se-log-node    .se-log-icon  { color: #a78bfa; }
+.se-log-edge    .se-log-icon  { color: #38bdf8; }
+.se-log-console .se-log-icon  { color: #facc15; }
+.se-log-console .se-log-label { color: #facc15; }
+.se-log-console .se-log-value { color: #fef08a; font-weight: 600; }
 
 /* ── React Flow overrides ── */
 .react-flow__background { background: var(--bg) !important; }

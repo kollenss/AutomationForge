@@ -71,13 +71,20 @@ function EditorInner({ project, scene, library }) {
     if (!debugMode) return
     const onEdgePulse = ({ edge_id, value, target_handle }) => { pulse(setActiveEdges, edge_id); addLog('edge', edge_id, value, target_handle) }
     const onNodePulse = ({ node_id }) => { pulse(setActiveNodes, node_id); addLog('node', node_id) }
-    socket.on('edge_pulse', onEdgePulse)
-    socket.on('node_pulse', onNodePulse)
-    return () => {
-      socket.off('edge_pulse', onEdgePulse)
-      socket.off('node_pulse', onNodePulse)
+    const onConsoleLog = ({ node_id, label, value }) => {
+      pulse(setActiveNodes, node_id)
+      addLog('console', node_id, value, label)
+      if (!logVisible) setLogVisible(true)
     }
-  }, [debugMode])
+    socket.on('edge_pulse',   onEdgePulse)
+    socket.on('node_pulse',   onNodePulse)
+    socket.on('console_log',  onConsoleLog)
+    return () => {
+      socket.off('edge_pulse',  onEdgePulse)
+      socket.off('node_pulse',  onNodePulse)
+      socket.off('console_log', onConsoleLog)
+    }
+  }, [debugMode, logVisible])
 
   function startReplay() {
     if (replaying || logRef.current.length === 0) return
@@ -106,6 +113,11 @@ function EditorInner({ project, scene, library }) {
   }
 
   function labelFor(entry) {
+    if (entry.type === 'console') {
+      const n = nodes.find(n => n.id === entry.id)
+      const name = n ? n.data.label : entry.id.slice(-8)
+      return `[${entry.targetHandle || 'log'}] ${name}`
+    }
     if (entry.type === 'node') {
       const n = nodes.find(n => n.id === entry.id)
       return n ? n.data.label : entry.id.slice(-8)
@@ -314,9 +326,9 @@ function EditorInner({ project, scene, library }) {
                   {logEntries.slice(-80).reverse().map((e, i) => (
                     <div key={i} className={`se-log-entry se-log-${e.type}`}>
                       <span className="se-log-t">+{e.t}ms</span>
-                      <span className="se-log-icon">{e.type === 'node' ? '◈' : '→'}</span>
+                      <span className="se-log-icon">{e.type === 'node' ? '◈' : e.type === 'console' ? '📝' : '→'}</span>
                       <span className="se-log-label">{labelFor(e)}</span>
-                      {e.type === 'edge' && e.value != null && (
+                      {(e.type === 'edge' || e.type === 'console') && e.value != null && (
                         <span className="se-log-value">
                           {String(e.value).length > 20
                             ? String(e.value).slice(0, 20) + '…'

@@ -8,15 +8,18 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0a0a0a;
-      --surface: #141414;
-      --border:  #2a2a2a;
+      --bg:      #050505;
+      --surface: #0f0f0f;
+      --surface2:#161616;
+      --border:  #222;
       --accent:  #c9a84c;
+      --accent2: #e8c96a;
       --text:    #f0f0f0;
-      --muted:   #888;
+      --muted:   #555;
       --success: #22c55e;
       --error:   #ef4444;
-      --radius:  12px;
+      --radius:  14px;
+      --glow:    0 0 24px rgba(201,168,76,0.15);
     }
 
     body {
@@ -27,159 +30,241 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      gap: 24px;
+      justify-content: flex-start;
+      padding: 40px 20px 32px;
+      gap: 28px;
     }
 
+    /* ── Header ── */
     header {
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .logo {
+      font-size: 2rem;
+      filter: drop-shadow(0 0 12px rgba(201,168,76,0.5));
+      margin-bottom: 4px;
     }
     header h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
       color: var(--accent);
+      text-shadow: 0 0 20px rgba(201,168,76,0.4);
     }
     header p {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--muted);
-      margin-top: 4px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
+    /* ── Card ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 20px;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
+      box-shadow: var(--glow), 0 4px 32px rgba(0,0,0,0.6);
     }
 
+    /* ── Input ── */
+    .input-wrap {
+      position: relative;
+    }
     textarea {
       background: var(--bg);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 1rem;
+      border-radius: 10px;
+      padding: 14px 14px 32px;
+      font-size: 1.05rem;
       width: 100%;
-      min-height: 100px;
-      resize: vertical;
+      min-height: 90px;
+      max-height: 200px;
+      resize: none;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       font-family: inherit;
-      line-height: 1.5;
+      line-height: 1.6;
+      caret-color: var(--accent);
     }
     textarea:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(201,168,76,0.12);
     }
-    textarea::placeholder {
+    textarea::placeholder { color: var(--muted); }
+    .char-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      font-size: 0.7rem;
       color: var(--muted);
+      pointer-events: none;
+      transition: color 0.2s;
     }
+    .char-hint.warn { color: var(--accent); }
 
-    button {
+    /* ── Send button ── */
+    .send-btn {
       background: var(--accent);
       color: #000;
       border: none;
-      border-radius: 8px;
-      padding: 14px;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
+      position: relative;
+      overflow: hidden;
     }
-    button:active {
-      opacity: 0.8;
-      transform: scale(0.98);
+    .send-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.08);
+      opacity: 0;
+      transition: opacity 0.15s;
     }
-    button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .send-btn:active { transform: scale(0.97); }
+    .send-btn:active::after { opacity: 1; }
+    .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .send-btn.sending { background: var(--surface2); color: var(--accent); border: 1px solid var(--accent); }
 
+    /* ── Status ── */
     .status {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       text-align: center;
-      min-height: 1.2em;
-      transition: color 0.3s;
+      min-height: 1.1em;
+      letter-spacing: 0.04em;
+      transition: opacity 0.3s;
     }
     .status.ok    { color: var(--success); }
     .status.error { color: var(--error); }
+    .status.empty { opacity: 0; }
 
-    .history {
+    /* ── Recent ── */
+    .recent {
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
     }
-    .history h2 {
-      font-size: 0.75rem;
+    .recent-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+    .recent-header span {
+      font-size: 0.68rem;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
+      letter-spacing: 0.1em;
+      flex: 1;
     }
-    .history-list {
+    .recent-list {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: 200px;
-      overflow-y: auto;
     }
-    .history-item {
+    .recent-item {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.85rem;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.9rem;
       color: var(--muted);
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .recent-item:active { background: var(--surface2); }
+    .recent-item:hover  { border-color: var(--accent); color: var(--text); }
+    .recent-item .ri-text {
+      flex: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .history-item:hover { border-color: var(--accent); color: var(--text); }
+    .recent-item .ri-icon {
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .recent-item:hover .ri-icon { color: var(--accent); }
   </style>
 </head>
 <body>
 
   <header>
+    <div class="logo">📡</div>
     <h1>{{TITLE}}</h1>
-    <p>Type text and send it to the Pi</p>
+    <p>Secure transmission terminal</p>
   </header>
 
   <div class="card">
-    <textarea id="txt" placeholder="{{PLACEHOLDER}}" rows="4" autofocus></textarea>
-    <button id="btn" onclick="sendText()">SEND</button>
-    <div class="status" id="status"></div>
+    <div class="input-wrap">
+      <textarea id="txt" placeholder="{{PLACEHOLDER}}" rows="3" autofocus
+        oninput="onInput()"></textarea>
+      <span class="char-hint" id="charHint"></span>
+    </div>
+    <button class="send-btn" id="btn" onclick="sendText()">Transmit</button>
+    <div class="status empty" id="status"></div>
   </div>
 
-  <div class="history" id="historyBox" style="display:none">
-    <h2>Recent</h2>
-    <div class="history-list" id="historyList"></div>
+  <div class="recent" id="recentBox" style="display:none">
+    <div class="recent-header">
+      <span>Recent</span>
+    </div>
+    <div class="recent-list" id="recentList"></div>
   </div>
 
   <script>
     const INPUT_ID = new URLSearchParams(location.search).get('id') || '1';
-    const history = [];
+    const MAX_RECENT = 5;
+    const recentItems = [];
+
+    function onInput() {
+      const val = document.getElementById('txt').value;
+      const hint = document.getElementById('charHint');
+      if (val.length > 40) {
+        hint.textContent = val.length;
+        hint.className = 'char-hint warn';
+      } else {
+        hint.textContent = '';
+        hint.className = 'char-hint';
+      }
+    }
 
     async function sendText() {
-      const txt = document.getElementById('txt');
-      const btn = document.getElementById('btn');
+      const txt    = document.getElementById('txt');
+      const btn    = document.getElementById('btn');
       const status = document.getElementById('status');
-      const text = txt.value.trim();
-      if (!text) return;
+      const text   = txt.value.trim();
+      if (!text) { shakeTxt(); return; }
 
       btn.disabled = true;
-      status.className = 'status';
-      status.textContent = 'Sending…';
+      btn.classList.add('sending');
+      btn.textContent = 'Sending…';
+      status.className = 'status empty';
+      status.textContent = '';
 
       try {
         const res = await fetch('/submit', {
@@ -190,38 +275,62 @@
         const data = await res.json();
         if (data.ok) {
           status.className = 'status ok';
-          status.textContent = '✓ Sent';
-          addHistory(text);
+          status.textContent = '✓ Transmitted';
+          addRecent(text);
           txt.value = '';
-          setTimeout(() => { status.textContent = ''; }, 2000);
+          onInput();
+          setTimeout(() => { status.className = 'status empty'; status.textContent = ''; }, 2500);
         } else {
           throw new Error('Server error');
         }
       } catch (e) {
         status.className = 'status error';
-        status.textContent = '✗ Failed — check connection';
+        status.textContent = '✗ Signal lost — check connection';
       } finally {
         btn.disabled = false;
+        btn.classList.remove('sending');
+        btn.textContent = 'Transmit';
       }
     }
 
-    function addHistory(text) {
-      history.unshift(text);
-      if (history.length > 10) history.pop();
-      const box = document.getElementById('historyBox');
-      const list = document.getElementById('historyList');
-      box.style.display = '';
-      list.innerHTML = history.map(t =>
-        `<div class="history-item" onclick="reuseText(this.dataset.text)" data-text="${t.replace(/"/g,'&quot;')}">${t}</div>`
-      ).join('');
+    function shakeTxt() {
+      const el = document.getElementById('txt');
+      el.style.transition = 'transform 0.05s';
+      const frames = [4, -4, 3, -3, 0];
+      frames.forEach((x, i) =>
+        setTimeout(() => el.style.transform = `translateX(${x}px)`, i * 50)
+      );
+      setTimeout(() => el.style.transition = '', 300);
+    }
+
+    function addRecent(text) {
+      const idx = recentItems.indexOf(text);
+      if (idx !== -1) recentItems.splice(idx, 1);
+      recentItems.unshift(text);
+      if (recentItems.length > MAX_RECENT) recentItems.length = MAX_RECENT;
+      renderRecent();
+    }
+
+    function renderRecent() {
+      const box  = document.getElementById('recentBox');
+      const list = document.getElementById('recentList');
+      box.style.display = recentItems.length ? '' : 'none';
+      list.innerHTML = recentItems.map(t => {
+        const safe = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+        return `<div class="recent-item" onclick="reuseText(this.dataset.text)" data-text="${safe}">
+          <span class="ri-text">${safe}</span>
+          <span class="ri-icon">↑</span>
+        </div>`;
+      }).join('');
     }
 
     function reuseText(text) {
-      document.getElementById('txt').value = text;
-      document.getElementById('txt').focus();
+      const el = document.getElementById('txt');
+      el.value = text;
+      el.focus();
+      onInput();
     }
 
-    // Submit on Ctrl+Enter / Cmd+Enter
     document.getElementById('txt').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();

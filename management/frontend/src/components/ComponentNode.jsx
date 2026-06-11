@@ -105,6 +105,35 @@ function RelayStatus({ channel }) {
   )
 }
 
+function RfidStatus({ readerId }) {
+  const [uid, setUid] = useState('')
+  const [flash, setFlash] = useState(false)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    function onState(s) {
+      if (String(s.reader_id) !== String(readerId)) return
+      setUid(s.uid)
+      setFlash(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setFlash(false), 1500)
+    }
+    socket.on('rfid_state', onState)
+    return () => {
+      socket.off('rfid_state', onState)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [readerId])
+
+  if (!uid) return null
+  return (
+    <div className={`cn-text-input-status ${flash ? 'cn-text-input-flash' : ''}`}>
+      <span className="cn-text-input-label">Last:</span>
+      <span className="cn-text-input-value" style={{fontFamily:'monospace'}}>{uid}</span>
+    </div>
+  )
+}
+
 function RfidSim({ readerId }) {
   const [uid, setUid] = useState('')
 
@@ -357,6 +386,9 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'ky040_encoder' && (
         <EncoderSim encoderId={data.params?.encoder_id ?? 1} />
+      )}
+      {data.componentType === 'rfid_reader' && (
+        <RfidStatus readerId={data.params?.reader_id ?? 1} />
       )}
       {data.componentType === 'rfid_reader' && (
         <RfidSim readerId={data.params?.reader_id ?? 1} />

@@ -16,10 +16,12 @@
             {"key": "name", "label": "Label", "type": "text", "default": "gate"}
           ],
           "inputs": [
-            {"key": "trigger", "label": "Trigger", "description": "Any signal here unlocks the gate and fires Out once"}
+            {"key": "trigger", "label": "Unlock",  "description": "Any signal here unlocks the gate permanently — connect from If/Else Then"},
+            {"key": "signal",  "label": "Signal",  "description": "Value to pass through — only flows when gate is open"}
           ],
           "outputs": [
-            {"key": "out", "label": "Out", "description": "Fires once when the gate is first triggered"}
+            {"key": "out",    "label": "Out",    "description": "Fires with every Signal value while gate is open"},
+            {"key": "opened", "label": "Opened", "description": "Fires once when gate first unlocks"}
           ]
         },
         {

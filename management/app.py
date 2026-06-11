@@ -74,7 +74,7 @@ def _hw_post(path, data=None):
 
 def _read_json(path, default=None):
     try:
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             return json.load(f)
     except Exception:
         return default if default is not None else {}
@@ -82,8 +82,8 @@ def _read_json(path, default=None):
 
 def _write_json(path, data):
     tmp = path + '.tmp'
-    with open(tmp, 'w') as f:
-        json.dump(data, f, indent=2)
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
 
 

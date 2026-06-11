@@ -174,3 +174,5 @@
   color: #06b6d4; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.cn-last-err .cn-text-input-value { color: #f87171; }
+.cn-last-err.cn-text-input-flash { background: #f8717120; }

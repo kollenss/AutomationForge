@@ -79,8 +79,10 @@ def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
     valid_uids = {u.strip().upper() for u in params.get('valid_uids', '').split(',') if u.strip()}
     uid = str(value).strip().upper()
     if uid in valid_uids:
+        if emit: emit('node_event', {'node_id': node_id, 'label': f'✓ {uid}', 'ok': True})
         propagate('authorized', uid)
     else:
+        if emit: emit('node_event', {'node_id': node_id, 'label': f'✗ {uid}', 'ok': False})
         propagate('denied', uid)
 
 
@@ -373,6 +375,7 @@ def _exec_dfplayer(node_id, params, handle, value, emit, propagate, get_state):
     duration_s = float(params.get('duration_s', 0))
 
     _hw_post('/hardware/dfplayer/play', {'track': track, 'volume': volume})
+    if emit: emit('node_event', {'node_id': node_id, 'label': f'Track {track}', 'ok': True})
 
     if duration_s > 0:
         t = state.get('timer')
@@ -397,6 +400,7 @@ def _exec_servo(node_id, params, handle, value, emit, propagate, get_state):
         except (TypeError, ValueError):
             return
         _hw_post('/hardware/servo/set_angle', {'gpio_pin': gpio_pin, 'angle': angle})
+        if emit: emit('node_event', {'node_id': node_id, 'label': f'{int(angle)}°', 'ok': True})
         propagate('done', angle)
     elif handle == 'release':
         _hw_post('/hardware/servo/release', {'gpio_pin': gpio_pin})
@@ -551,13 +555,16 @@ def _exec_checklist(node_id, params, handle, value, emit, propagate, get_state):
             # Final step — checklist complete
             state['next_step'] = 1   # reset so it can be reused
             _emit_status(length)
+            if emit: emit('node_event', {'node_id': node_id, 'label': f'Done {length}/{length}', 'ok': True})
             propagate('complete', value)
         else:
             # Correct step, advance
             state['next_step'] = expected + 1
+            if emit: emit('node_event', {'node_id': node_id, 'label': f'Step {step_num}/{length}', 'ok': True})
             _emit_status(step_num)
     else:
         # Wrong order
+        if emit: emit('node_event', {'node_id': node_id, 'label': f'Out of order', 'ok': False})
         if reset_on_fail:
             state['next_step'] = 1
         _emit_status(-1)
@@ -585,18 +592,22 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
     if handle == 'set_color':
         payload['color'] = value if isinstance(value, str) and value else default_color
         _hw_post('/hardware/ws2812b/set_color', payload)
+        if emit: emit('node_event', {'node_id': node_id, 'label': payload['color'], 'ok': True})
         propagate('done', value)
 
     elif handle == 'off':
         _hw_post('/hardware/ws2812b/off', payload)
+        if emit: emit('node_event', {'node_id': node_id, 'label': 'off', 'ok': True})
         propagate('done', value)
 
     elif handle == 'pulse':
         _hw_post('/hardware/ws2812b/pulse', payload)
+        if emit: emit('node_event', {'node_id': node_id, 'label': 'pulse', 'ok': True})
         propagate('done', value)
 
     elif handle == 'rainbow':
         _hw_post('/hardware/ws2812b/rainbow', payload)
+        if emit: emit('node_event', {'node_id': node_id, 'label': 'rainbow', 'ok': True})
         propagate('done', value)
 
     elif handle == 'blink':
@@ -946,6 +957,9 @@ class GameEngine:
                 continue
             if self._emit:
                 self._emit('node_pulse', {'node_id': nid})
+                if device_type == 'usb_device_detector':
+                    label = h.replace('_', ' ')
+                    self._emit('node_event', {'node_id': nid, 'label': label, 'ok': 'inserted' in h})
             results.extend(self.process_event(nid, h, scalar))
         return results
 

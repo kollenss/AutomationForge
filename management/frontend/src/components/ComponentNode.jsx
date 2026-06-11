@@ -352,6 +352,35 @@ function EncoderSim({ encoderId }) {
   )
 }
 
+// Generic "Last: value" badge — listens to node_event{node_id, label, ok}
+function LastValue({ nodeId }) {
+  const [last, setLast] = useState(null)
+  const [ok,   setOk]   = useState(true)
+  const [flash, setFlash] = useState(false)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    function onEvent(e) {
+      if (e.node_id !== nodeId) return
+      setLast(e.label)
+      setOk(e.ok !== false)
+      setFlash(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setFlash(false), 800)
+    }
+    socket.on('node_event', onEvent)
+    return () => { socket.off('node_event', onEvent); if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [nodeId])
+
+  if (!last) return null
+  return (
+    <div className={`cn-text-input-status ${flash ? 'cn-text-input-flash' : ''} ${ok ? '' : 'cn-last-err'}`}>
+      <span className="cn-text-input-label">Last:</span>
+      <span className="cn-text-input-value">{last}</span>
+    </div>
+  )
+}
+
 function TimerStatus({ nodeId, duration }) {
   const [remaining, setRemaining] = useState(duration)
   const [running,   setRunning]   = useState(false)
@@ -415,6 +444,24 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'rfid_reader' && (
         <RfidSim readerId={data.params?.reader_id ?? 1} />
+      )}
+      {data.componentType === 'rfid_auth' && (
+        <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'dfplayer' && (
+        <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'servo' && (
+        <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'led_zone' && (
+        <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'checklist' && (
+        <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'usb_device_detector' && (
+        <LastValue nodeId={id} />
       )}
       {data.componentType === 'usb_device_detector' && (
         <UsbSim />

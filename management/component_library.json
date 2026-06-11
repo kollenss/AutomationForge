@@ -6,24 +6,6 @@
       "color": "#8b5cf6",
       "components": [
         {
-          "type": "gate",
-          "label": "Gate",
-          "subtitle": "Unlocks when value matches",
-          "color": "#f59e0b",
-          "icon": "🚧",
-          "display_param": "name",
-          "params": [
-            {"key": "name",  "label": "Label",          "type": "text", "default": "gate"},
-            {"key": "value", "label": "Expected Value", "type": "text", "default": ""}
-          ],
-          "inputs": [
-            {"key": "input", "label": "Input", "description": "Connect from Text Input or RFID — checked against Expected Value"}
-          ],
-          "outputs": [
-            {"key": "out", "label": "Out", "description": "Blocked until value matches — then open permanently, passes every signal through"}
-          ]
-        },
-        {
           "type": "if_else",
           "subtitle": "Conditional branch",
           "color": "#8b5cf6",

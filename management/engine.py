@@ -674,29 +674,6 @@ def _exec_if_else(node_id, params, handle, value, emit, propagate, get_state):
         propagate('else', value)
 
 
-def _exec_gate(node_id, params, handle, value, emit, propagate, get_state):
-    """Gate — locked until input matches expected value, then open permanently.
-
-    Input:
-        input  — value to check against Expected Value param
-
-    Output:
-        out    — blocked while locked; passes every signal through once open
-    """
-    state = get_state({'open': False})
-
-    if state['open']:
-        # Already unlocked — pass everything through
-        propagate('out', value)
-        return
-
-    expected = str(params.get('value', ''))
-    if str(value) == expected:
-        state['open'] = True
-        if emit:
-            emit('gate_state', {'node_id': node_id, 'open': True})
-        propagate('out', value)
-
 
 # ---------------------------------------------------------------------------
 
@@ -713,7 +690,6 @@ _EXECUTORS = {
     'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
     'if_else':       _exec_if_else,
-    'gate':          _exec_gate,
 }
 
 

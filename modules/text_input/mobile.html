@@ -5,6 +5,377 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>{{TITLE}}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #020c02;
+      --surface: #040f04;
+      --green:   #4afa4a;
+      --green2:  #1a7a1a;
+      --green3:  #0d3d0d;
+      --dim:     #2a5a2a;
+      --muted:   #1f4d1f;
+      --text:    #4afa4a;
+      --amber:   #faad4a;
+      --error:   #fa4a4a;
+      --radius:  0px;
+      --font:    'Share Tech Mono', 'Courier New', monospace;
+    }
+
+    /* CRT scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.18) 2px,
+        rgba(0,0,0,0.18) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* CRT vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 28px 16px 32px;
+      gap: 20px;
+      /* subtle phosphor flicker */
+      animation: flicker 8s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 97%, 100% { opacity: 1; }
+      98%            { opacity: 0.92; }
+      99%            { opacity: 1; }
+      99.5%          { opacity: 0.88; }
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 460px;
+      border: 1px solid var(--green2);
+      padding: 12px 16px;
+      text-shadow: 0 0 8px var(--green);
+    }
+    .terminal-brand {
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+    .cursor-blink {
+      display: inline-block;
+      width: 0.6em;
+      height: 1em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1.1s step-end infinite;
+      margin-left: 2px;
+    }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+    header p {
+      font-size: 0.65rem;
+      color: var(--dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      width: 100%;
+      max-width: 460px;
+      font-size: 0.6rem;
+      color: var(--green2);
+      letter-spacing: 0.04em;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--green2);
+      padding: 16px;
+      width: 100%;
+      max-width: 460px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 0 20px rgba(74,250,74,0.06), inset 0 0 40px rgba(0,0,0,0.4);
+    }
+
+    .field-label {
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* ── Textarea ── */
+    .input-wrap { position: relative; }
+    textarea {
+      background: #010801;
+      color: var(--green);
+      border: 1px solid var(--green2);
+      border-radius: 0;
+      padding: 10px 10px 28px;
+      font-size: 0.95rem;
+      font-family: var(--font);
+      width: 100%;
+      min-height: 80px;
+      max-height: 180px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      line-height: 1.6;
+      caret-color: var(--green);
+      text-shadow: 0 0 6px rgba(74,250,74,0.6);
+    }
+    textarea:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 10px rgba(74,250,74,0.15);
+    }
+    textarea::placeholder { color: var(--green2); }
+    .char-hint {
+      position: absolute;
+      bottom: 7px; right: 10px;
+      font-size: 0.6rem;
+      color: var(--dim);
+      font-family: var(--font);
+      pointer-events: none;
+    }
+    .char-hint.warn { color: var(--amber); }
+
+    /* ── Send button ── */
+    .send-btn {
+      background: transparent;
+      color: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 0;
+      padding: 13px 16px;
+      font-size: 0.85rem;
+      font-family: var(--font);
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.12s, box-shadow 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      text-shadow: 0 0 8px var(--green);
+      box-shadow: 0 0 8px rgba(74,250,74,0.1);
+    }
+    .send-btn:active  { background: var(--green3); box-shadow: 0 0 16px rgba(74,250,74,0.25); }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .send-btn.sending { color: var(--dim); border-color: var(--green2); text-shadow: none; box-shadow: none; }
+
+    /* ── Status ── */
+    .status {
+      font-size: 0.72rem;
+      font-family: var(--font);
+      letter-spacing: 0.06em;
+      min-height: 1em;
+      transition: opacity 0.3s;
+    }
+    .status.ok    { color: var(--green); text-shadow: 0 0 8px var(--green); }
+    .status.error { color: var(--error); text-shadow: 0 0 8px var(--error); }
+    .status.empty { opacity: 0; }
+
+    /* ── Recent ── */
+    .recent {
+      width: 100%;
+      max-width: 460px;
+    }
+    .recent-header {
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .recent-list { display: flex; flex-direction: column; gap: 4px; }
+    .recent-item {
+      background: var(--surface);
+      border: 1px solid var(--muted);
+      padding: 9px 12px;
+      font-size: 0.82rem;
+      font-family: var(--font);
+      color: var(--green2);
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s, background 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .recent-item:active  { background: var(--green3); }
+    .recent-item:hover   { border-color: var(--green); color: var(--text); text-shadow: 0 0 6px var(--green); }
+    .recent-item .ri-text  { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .recent-item .ri-icon  { font-size:0.65rem; color: var(--green2); flex-shrink:0; }
+    .recent-item:hover .ri-icon { color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="terminal-brand">RobCo Industries — PIP-NET v2.4.1</div>
+    <h1>> {{TITLE}}<span class="cursor-blink"></span></h1>
+    <p>Encrypted transmission terminal // awaiting input</p>
+  </header>
+
+  <div class="divider">//=======================================================================================//</div>
+
+  <div class="card">
+    <div class="field-label">> Enter message:</div>
+    <div class="input-wrap">
+      <textarea id="txt" placeholder="{{PLACEHOLDER}}" rows="3" autofocus
+        oninput="onInput()"></textarea>
+      <span class="char-hint" id="charHint"></span>
+    </div>
+    <button class="send-btn" id="btn" onclick="sendText()">[ Transmit ]</button>
+    <div class="status empty" id="status">&nbsp;</div>
+  </div>
+
+  <div class="recent" id="recentBox" style="display:none">
+    <div class="recent-header">> Transmission log:</div>
+    <div class="recent-list" id="recentList"></div>
+  </div>
+
+  <script>
+    const INPUT_ID  = new URLSearchParams(location.search).get('id') || '1';
+    const MAX_RECENT = 5;
+    const recentItems = [];
+
+    function onInput() {
+      const val  = document.getElementById('txt').value;
+      const hint = document.getElementById('charHint');
+      if (val.length > 40) {
+        hint.textContent = val.length + ' chars';
+        hint.className = 'char-hint warn';
+      } else {
+        hint.textContent = '';
+        hint.className = 'char-hint';
+      }
+    }
+
+    async function sendText() {
+      const txt    = document.getElementById('txt');
+      const btn    = document.getElementById('btn');
+      const status = document.getElementById('status');
+      const text   = txt.value.trim();
+      if (!text) { shakeTxt(); return; }
+
+      btn.disabled = true;
+      btn.classList.add('sending');
+      btn.textContent = '[ Transmitting... ]';
+      status.className = 'status empty';
+      status.textContent = '\u00a0';
+
+      try {
+        const res = await fetch('/submit', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text, input_id: INPUT_ID}),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          status.className = 'status ok';
+          status.textContent = '> SIGNAL RECEIVED. TRANSMISSION LOGGED.';
+          addRecent(text);
+          txt.value = '';
+          onInput();
+          setTimeout(() => { status.className = 'status empty'; status.textContent = '\u00a0'; }, 3000);
+        } else {
+          throw new Error();
+        }
+      } catch (e) {
+        status.className = 'status error';
+        status.textContent = '> ERROR: SIGNAL LOST. CHECK CONNECTION.';
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('sending');
+        btn.textContent = '[ Transmit ]';
+      }
+    }
+
+    function shakeTxt() {
+      const el = document.getElementById('txt');
+      const s  = el.style;
+      [4,-4,3,-3,0].forEach((x,i) =>
+        setTimeout(() => { s.transition='transform 0.05s'; s.transform=`translateX(${x}px)`; }, i*55)
+      );
+      setTimeout(() => s.transition='', 320);
+    }
+
+    function addRecent(text) {
+      const idx = recentItems.indexOf(text);
+      if (idx !== -1) recentItems.splice(idx, 1);
+      recentItems.unshift(text);
+      if (recentItems.length > MAX_RECENT) recentItems.length = MAX_RECENT;
+      renderRecent();
+    }
+
+    function renderRecent() {
+      const box  = document.getElementById('recentBox');
+      const list = document.getElementById('recentList');
+      box.style.display = recentItems.length ? '' : 'none';
+      list.innerHTML = recentItems.map((t, i) => {
+        const safe = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+        return `<div class="recent-item" onclick="reuseText(this.dataset.text)" data-text="${safe}">
+          <span class="ri-text">[${String(i+1).padStart(2,'0')}] ${safe}</span>
+          <span class="ri-icon">&#8629;</span>
+        </div>`;
+      }).join('');
+    }
+
+    function reuseText(text) {
+      const el = document.getElementById('txt');
+      el.value = text;
+      el.focus();
+      onInput();
+    }
+
+    document.getElementById('txt').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendText(); }
+    });
+  </script>
+</body>
+</html>
+  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {

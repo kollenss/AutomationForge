@@ -6,6 +6,23 @@
       "color": "#8b5cf6",
       "components": [
         {
+          "type": "console_log",
+          "label": "Console Log",
+          "subtitle": "Debug output",
+          "color": "#64748b",
+          "icon": "📜",
+          "display_param": "label",
+          "params": [
+            {"key": "label", "label": "Label", "type": "text", "default": "log"}
+          ],
+          "inputs": [
+            {"key": "value", "label": "Value", "description": "Logs whatever arrives here"}
+          ],
+          "outputs": [
+            {"key": "out", "label": "Pass-through", "description": "Forwards the same value so you can chain logs"}
+          ]
+        },
+        {
           "type": "if_else",
           "subtitle": "Conditional branch",
           "color": "#8b5cf6",

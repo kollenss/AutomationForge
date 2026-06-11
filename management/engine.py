@@ -675,6 +675,15 @@ def _exec_if_else(node_id, params, handle, value, emit, propagate, get_state):
 
 
 
+def _exec_console_log(node_id, params, handle, value, emit, propagate, get_state):
+    label = params.get('label', 'log')
+    short_id = str(node_id)[-6:]
+    print(f'[LOG {label} #{short_id}] {value}', flush=True)
+    if emit:
+        emit('console_log', {'node_id': node_id, 'label': label, 'value': str(value)})
+    propagate('out', value)
+
+
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
@@ -690,6 +699,7 @@ _EXECUTORS = {
     'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
     'if_else':       _exec_if_else,
+    'console_log':   _exec_console_log,
 }
 
 

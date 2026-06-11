@@ -74,31 +74,8 @@ def _exec_relay(node_id, params, handle, value, emit, propagate, get_state):
 
 
 def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
-    start_disabled = params.get('start_disabled', False)
-    if isinstance(start_disabled, str):
-        start_disabled = start_disabled in ('true', '1', 'yes')
-    state = get_state({'enabled': not start_disabled})
-
-    h = (handle or 'card_read').lower()
-
-    if h == 'enable':
-        state['enabled'] = True
-        if emit:
-            emit('rfid_auth_state', {'node_id': node_id, 'enabled': True})
+    if handle and handle.lower() != 'card_read':
         return
-
-    if h == 'disable':
-        state['enabled'] = False
-        if emit:
-            emit('rfid_auth_state', {'node_id': node_id, 'enabled': False})
-        return
-
-    if h != 'card_read':
-        return
-
-    if not state['enabled']:
-        return
-
     valid_uids = {u.strip().upper() for u in params.get('valid_uids', '').split(',') if u.strip()}
     uid = str(value).strip().upper()
     if uid in valid_uids:
@@ -729,6 +706,8 @@ class GameEngine:
         self._scene_name_to_id = {} # scene name → scene_id
         self._active_scene_ids = set()
         self._on_scene_activation = None  # fn(scene_id, active: bool) — set by app.py for persistence
+        self._if_else_gated = set() # node IDs that start disabled because they are wired from an if_else output
+        self._unlocked = set()      # gated node IDs that have been unlocked this session
 
     def set_emit(self, fn):
         self._emit = fn
@@ -748,6 +727,15 @@ class GameEngine:
                 nodes[node['id']] = node
                 node_to_scene[node['id']] = sid
             edges.extend(scene.get('edges', []))
+        # Nodes that have any incoming wire from an if_else output start disabled.
+        # The if_else wire itself is what unlocks them — no param needed.
+        gated = set()
+        for edge in edges:
+            src = nodes.get(edge.get('source'))
+            if src and src['data']['componentType'] == 'if_else':
+                src_handle = (edge.get('sourceHandle') or '').lower()
+                if src_handle in ('then', 'else'):
+                    gated.add(edge['target'])
         with self._lock:
             self._nodes = nodes
             self._edges = list(edges)
@@ -755,11 +743,19 @@ class GameEngine:
             self._node_to_scene = node_to_scene
             self._scene_name_to_id = name_to_id
             self._active_scene_ids = active_ids
+            self._if_else_gated = gated
+            self._unlocked = set()
         return len(nodes), len(edges)
 
     def activate_scene(self, scene_id, from_canvas=False):
         with self._lock:
             self._active_scene_ids.add(scene_id)
+            # Re-lock any gated nodes in this scene so they start fresh
+            scene_gated = {
+                nid for nid in self._if_else_gated
+                if self._node_to_scene.get(nid) == scene_id
+            }
+            self._unlocked -= scene_gated
             start_nodes = [
                 nid for nid, sid in self._node_to_scene.items()
                 if sid == scene_id
@@ -858,15 +854,35 @@ class GameEngine:
                 if e.get('source') == node_id and (e.get('sourceHandle') or '').lower() == h
             ]
 
+        # Check if this propagation comes from an if_else output — if so, unlock targets
+        source_node = self._nodes.get(node_id)
+        is_if_else_output = (
+            source_node is not None
+            and source_node['data']['componentType'] == 'if_else'
+            and h in ('then', 'else')
+        )
+
         results = []
         for node, target_handle, edge_id in targets:
             if not node:
                 continue
+
+            # Topology-based gate: nodes wired from if_else start locked.
+            # The if_else wire unlocks them; any other incoming wire is ignored until unlocked.
+            nid = node['id']
+            if is_if_else_output:
+                with self._lock:
+                    self._unlocked.add(nid)
+                if self._emit:
+                    self._emit('if_else_gate_state', {'node_id': nid, 'unlocked': True})
+            elif nid in self._if_else_gated and nid not in self._unlocked:
+                continue   # still locked — drop this event
+
             # Emit visual pulse events for the edge and target node
             if self._emit:
                 if edge_id:
                     self._emit('edge_pulse', {'edge_id': edge_id, 'value': value, 'target_handle': target_handle})
-                self._emit('node_pulse', {'node_id': node['id']})
+                self._emit('node_pulse', {'node_id': nid})
             comp_type = node['data']['componentType']
             params    = node['data'].get('params', {})
 
@@ -879,16 +895,15 @@ class GameEngine:
                         self.activate_scene(sid, from_canvas=True)
                     else:
                         self.deactivate_scene(sid, from_canvas=True)
-                results.append({'node_id': node['id'], 'type': comp_type})
+                results.append({'node_id': nid, 'type': comp_type})
                 continue
 
             executor  = _EXECUTORS.get(comp_type)
             if not executor:
                 continue
-            # nid=node['id'] captures correct id per iteration (avoids closure issue)
-            propagate = lambda h, v, nid=node['id']: self.process_event(nid, h, v)
-            get_state = lambda defaults=None, nid=node['id']: self.get_node_state(nid, defaults)
-            executor(node['id'], params, target_handle, value, self._emit, propagate, get_state)
-            results.append({'node_id': node['id'], 'type': comp_type})
+            propagate = lambda h, v, _nid=nid: self.process_event(_nid, h, v)
+            get_state = lambda defaults=None, _nid=nid: self.get_node_state(_nid, defaults)
+            executor(nid, params, target_handle, value, self._emit, propagate, get_state)
+            results.append({'node_id': nid, 'type': comp_type})
 
         return results

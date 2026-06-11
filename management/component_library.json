@@ -152,18 +152,10 @@
               "label": "Label",
               "type": "text",
               "default": "RFID Gate"
-            },
-            {
-              "key": "start_disabled",
-              "label": "Start Disabled",
-              "type": "boolean",
-              "default": false
             }
           ],
           "inputs": [
-            {"key": "card_read", "label": "Card UID",  "description": "Receives a card UID string — connect from an RFID Reader"},
-            {"key": "enable",    "label": "Enable",   "description": "Activates card checking — connect from If/Else Then or any trigger"},
-            {"key": "disable",   "label": "Disable",  "description": "Deactivates card checking until re-enabled"}
+            {"key": "card_read", "label": "Card UID", "description": "Receives a card UID string — connect from an RFID Reader"}
           ],
           "outputs": [
             {"key": "authorized", "label": "Card Accepted", "description": "Fires when the scanned UID is in the valid UIDs list"},

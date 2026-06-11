@@ -13,24 +13,39 @@
 
 @keyframes nodePulse {
   0%   {
-    box-shadow: 0 0 0 0   color-mix(in srgb, var(--node-color) 95%, transparent),
-                0 0 12px  color-mix(in srgb, var(--node-color) 60%, transparent);
-    border-color: color-mix(in srgb, var(--node-color) 100%, white);
+    box-shadow: 0 0 0 0   color-mix(in srgb, var(--node-color) 100%, transparent),
+                0 0 0px   color-mix(in srgb, var(--node-color)  80%, transparent);
+    border-color: white;
     border-width: 2.5px;
+    transform: scale(1.06);
   }
-  50%  {
-    box-shadow: 0 0 0 8px  color-mix(in srgb, var(--node-color) 40%, transparent),
-                0 0 20px   color-mix(in srgb, var(--node-color) 30%, transparent);
+  8%   {
+    box-shadow: 0 0 0 4px  color-mix(in srgb, var(--node-color) 80%, transparent),
+                0 0 28px   color-mix(in srgb, var(--node-color) 70%, transparent);
+    border-color: white;
+    transform: scale(1.08);
+  }
+  22%  {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--node-color) 50%, transparent),
+                0 0 40px   color-mix(in srgb, var(--node-color) 40%, transparent);
+    border-color: color-mix(in srgb, var(--node-color) 100%, white);
+    border-width: 2px;
+    transform: scale(1.0);
+  }
+  60%  {
+    box-shadow: 0 0 0 20px color-mix(in srgb, var(--node-color) 15%, transparent),
+                0 0 50px   color-mix(in srgb, var(--node-color) 10%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 18px color-mix(in srgb, var(--node-color)  0%, transparent),
+    box-shadow: 0 0 0 32px color-mix(in srgb, var(--node-color)  0%, transparent),
                 0 0 0px    transparent;
     border-color: var(--node-color);
     border-width: 1.5px;
+    transform: scale(1.0);
   }
 }
 .cn-root.cn-active {
-  animation: nodePulse var(--pulse-dur, 600ms) ease-out forwards;
+  animation: nodePulse var(--pulse-dur, 1400ms) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .cn-badge {

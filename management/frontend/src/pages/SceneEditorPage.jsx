@@ -91,7 +91,7 @@ function EditorInner({ project, scene, library }) {
     if (!next) { setActiveEdges(new Set()); setActiveNodes(new Set()) }
   }
 
-  function pulse(setFn, id, duration = 600) {
+  function pulse(setFn, id, duration = 1400) {
     setFn(s => new Set([...s, id]))
     clearTimeout(pulseTimers.current[id])
     pulseTimers.current[id] = setTimeout(() =>
@@ -278,12 +278,12 @@ function EditorInner({ project, scene, library }) {
     setSaved(false)
   }, [nodes, edges])
 
-  const pulseDur = replaying ? `${Math.round(800 / replaySpeed)}ms` : '600ms'
+  const pulseDur = replaying ? `${Math.round(1400 / replaySpeed)}ms` : '1400ms'
   const displayEdges = edges.map(e => ({
     ...e,
     type: 'smoothstep',
     ...(activeEdges.has(e.id)
-      ? { animated: true, style: { ...e.style, stroke: '#a78bfa', strokeWidth: 2.5 } }
+      ? { animated: true, style: { ...e.style, stroke: '#c4b5fd', strokeWidth: 3.5 } }
       : {}),
   }))
   const displayNodes = nodes.map(n => ({

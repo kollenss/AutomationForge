@@ -18,7 +18,18 @@ Reboot after making changes.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3-pip python3-venv pigpio git
+sudo apt install -y python3-pip python3-venv git unzip
+```
+
+`pigpio` is not available as an apt package on Raspberry Pi OS Bookworm — build it from source:
+
+```bash
+wget https://github.com/joan2937/pigpio/archive/master.zip
+unzip master.zip
+cd pigpio-master
+make
+sudo make install
+cd ..
 ```
 
 If you plan to rebuild the frontend:

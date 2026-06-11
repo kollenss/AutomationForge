@@ -8,32 +8,18 @@
         {
           "type": "gate",
           "label": "Gate",
-          "subtitle": "Dependency lock",
+          "subtitle": "Locks until triggered",
           "color": "#f59e0b",
           "icon": "🚧",
           "display_param": "name",
           "params": [
-            {
-              "key": "default_open",
-              "label": "Default state",
-              "type": "select",
-              "default": "1",
-              "options": [
-                {"value": "1", "label": "Open (pass through by default)"},
-                {"value": "0", "label": "Locked (blocked until enabled)"}
-              ]
-            },
             {"key": "name", "label": "Label", "type": "text", "default": "gate"}
           ],
           "inputs": [
-            {"key": "signal",  "label": "Signal",  "description": "The value to pass through — blocked when gate is locked"},
-            {"key": "enable",  "label": "Unlock",  "description": "Opens the gate — connect from If/Else Then or any trigger"},
-            {"key": "disable", "label": "Lock",    "description": "Closes the gate again"}
+            {"key": "trigger", "label": "Trigger", "description": "Any signal here unlocks the gate and fires Out once"}
           ],
           "outputs": [
-            {"key": "out",    "label": "Out",    "description": "Fires with the signal value when the gate is open"},
-            {"key": "opened", "label": "Opened", "description": "Fires once when the gate transitions from locked to open"},
-            {"key": "closed", "label": "Closed", "description": "Fires once when the gate transitions from open to locked"}
+            {"key": "out", "label": "Out", "description": "Fires once when the gate is first triggered"}
           ]
         },
         {

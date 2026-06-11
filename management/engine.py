@@ -675,39 +675,19 @@ def _exec_if_else(node_id, params, handle, value, emit, propagate, get_state):
 
 
 def _exec_gate(node_id, params, handle, value, emit, propagate, get_state):
-    """Signal gate — blocks signals until enabled.
-
-    Params:
-        default_open  — '1' = starts open (default), '0' = starts locked
-
-    Inputs:
-        signal  — the value to pass through when open
-        enable  — open the gate (any signal)
-        disable — close the gate (any signal)
-
-    Outputs:
-        out     — fires with the signal value when gate is open
-        opened  — fires once when gate transitions to open
-        closed  — fires once when gate transitions to closed
+    """Latch gate — locked until a signal arrives, then open forever.
+    Any signal on 'trigger' opens the gate and fires 'out' once.
+    Further signals on 'trigger' are ignored (already open).
     """
-    default_open = params.get('default_open', '1') == '1'
-    state = get_state({'open': default_open})
+    state = get_state({'open': False})
 
-    if handle == 'enable':
+    if handle == 'trigger':
         if not state['open']:
             state['open'] = True
             if emit:
                 emit('gate_state', {'node_id': node_id, 'open': True})
-            propagate('opened', True)
-    elif handle == 'disable':
-        if state['open']:
-            state['open'] = False
-            if emit:
-                emit('gate_state', {'node_id': node_id, 'open': False})
-            propagate('closed', True)
-    elif handle == 'signal':
-        if state['open']:
             propagate('out', value)
+        # already open — ignore
 
 
 # ---------------------------------------------------------------------------

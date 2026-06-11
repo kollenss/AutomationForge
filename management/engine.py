@@ -837,7 +837,7 @@ class GameEngine:
             unlocked = self._unlocked
         results = []
         if isinstance(value, dict):
-            scalar = value.get('delta', value.get('uid', value))
+            scalar = value.get('text', value.get('delta', value.get('uid', value)))
         else:
             scalar = value
         for node in source_nodes:

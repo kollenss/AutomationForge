@@ -1546,15 +1546,23 @@
 <p>Reboot after making changes.</p>
 <h2 id="2-install-system-dependencies">2. Install system dependencies<a class="headerlink" href="#2-install-system-dependencies" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>apt<span class="w"> </span>upgrade<span class="w"> </span>-y
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3-pip<span class="w"> </span>python3-venv<span class="w"> </span>pigpio<span class="w"> </span>git
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3-pip<span class="w"> </span>python3-venv<span class="w"> </span>git<span class="w"> </span>unzip
+</code></pre></div>
+<p><code>pigpio</code> is not available as an apt package on Raspberry Pi OS Bookworm — build it from source:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>wget<span class="w"> </span>https://github.com/joan2937/pigpio/archive/master.zip
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>unzip<span class="w"> </span>master.zip
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nb">cd</span><span class="w"> </span>pigpio-master
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>make
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>sudo<span class="w"> </span>make<span class="w"> </span>install
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nb">cd</span><span class="w"> </span>..
 </code></pre></div>
 <p>If you plan to rebuild the frontend:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>nodejs<span class="w"> </span>npm
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>nodejs<span class="w"> </span>npm
 </code></pre></div>
 <h2 id="3-clone-the-repository">3. Clone the repository<a class="headerlink" href="#3-clone-the-repository" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/home/pi
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/kollenss/AutomationForge.git
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Files land in /home/pi/AutomationForge/</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>/home/pi
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/kollenss/AutomationForge.git
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Files land in /home/pi/AutomationForge/</span>
 </code></pre></div>
 <p>If you are working from a local Windows machine with the Pi share mounted as <code>Z:\</code>, the equivalent paths are:</p>
 <ul>
@@ -1562,42 +1570,25 @@
 <li>Pi: <code>/home/pi/management/</code> → Windows: <code>Z:\management\</code></li>
 </ul>
 <h2 id="4-install-python-dependencies">4. Install Python dependencies<a class="headerlink" href="#4-install-python-dependencies" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip3<span class="w"> </span>install<span class="w"> </span>flask<span class="w"> </span>flask-socketio<span class="w"> </span>pylibftdi<span class="w"> </span>mfrc522<span class="w"> </span>RPi.GPIO<span class="w"> </span>pigpio
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip3<span class="w"> </span>install<span class="w"> </span>flask<span class="w"> </span>flask-socketio<span class="w"> </span>pylibftdi<span class="w"> </span>mfrc522<span class="w"> </span>RPi.GPIO<span class="w"> </span>pigpio
 </code></pre></div>
 <h2 id="5-configure-systemd-services">5. Configure systemd services<a class="headerlink" href="#5-configure-systemd-services" title="Permanent link">&para;</a></h2>
 <p>Create service unit files so that all three services start automatically on boot and restart if they crash.</p>
 <h3 id="pigpiod">pigpiod<a class="headerlink" href="#pigpiod" title="Permanent link">&para;</a></h3>
 <p>pigpiod ships with a unit file. Enable it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>pigpiod
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>pigpiod
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>pigpiod
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>pigpiod
 </code></pre></div>
 <h3 id="hardware-service">hardware-service<a class="headerlink" href="#hardware-service" title="Permanent link">&para;</a></h3>
 <p>Create <code>/etc/systemd/system/hardware-service.service</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[Unit]</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">Description</span><span class="o">=</span><span class="s">PropForge Hardware Service</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="na">After</span><span class="o">=</span><span class="s">pigpiod.service</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="na">Requires</span><span class="o">=</span><span class="s">pigpiod.service</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">[Service]</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/pi/modules/hardware_service.py</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/pi/modules</span>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">3</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="na">User</span><span class="o">=</span><span class="s">pi</span>
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="k">[Install]</span>
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
-</code></pre></div>
-<h3 id="propforge">propforge<a class="headerlink" href="#propforge" title="Permanent link">&para;</a></h3>
-<p>Create <code>/etc/systemd/system/propforge.service</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[Unit]</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="na">Description</span><span class="o">=</span><span class="s">PropForge Engine</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="na">After</span><span class="o">=</span><span class="s">hardware-service.service</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="na">Requires</span><span class="o">=</span><span class="s">hardware-service.service</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="na">Description</span><span class="o">=</span><span class="s">PropForge Hardware Service</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="na">After</span><span class="o">=</span><span class="s">pigpiod.service</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="na">Requires</span><span class="o">=</span><span class="s">pigpiod.service</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
 <a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="k">[Service]</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/pi/management/app.py</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/pi/management</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/pi/modules/hardware_service.py</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/pi/modules</span>
 <a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
 <a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">3</span>
 <a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="na">User</span><span class="o">=</span><span class="s">pi</span>
@@ -1605,22 +1596,39 @@
 <a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="k">[Install]</span>
 <a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
 </code></pre></div>
+<h3 id="propforge">propforge<a class="headerlink" href="#propforge" title="Permanent link">&para;</a></h3>
+<p>Create <code>/etc/systemd/system/propforge.service</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[Unit]</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="na">Description</span><span class="o">=</span><span class="s">PropForge Engine</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="na">After</span><span class="o">=</span><span class="s">hardware-service.service</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="na">Requires</span><span class="o">=</span><span class="s">hardware-service.service</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="k">[Service]</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/pi/management/app.py</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/pi/management</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">3</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="na">User</span><span class="o">=</span><span class="s">pi</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="k">[Install]</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
+</code></pre></div>
 <p>Enable and start both:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>hardware-service<span class="w"> </span>propforge
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>hardware-service<span class="w"> </span>propforge
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>hardware-service<span class="w"> </span>propforge
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>hardware-service<span class="w"> </span>propforge
 </code></pre></div>
 <h2 id="6-verify-services-are-running">6. Verify services are running<a class="headerlink" href="#6-verify-services-are-running" title="Permanent link">&para;</a></h2>
 <p>Check that all three ports are listening:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ss<span class="w"> </span>-tlnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;5000|5101&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ss<span class="w"> </span>-tlnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;5000|5101&#39;</span>
 </code></pre></div>
 <p>Expected output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>LISTEN  0  5  0.0.0.0:5101  ...  python3 (hardware-service)
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>LISTEN  0  5  0.0.0.0:5000  ...  python3 (propforge)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>LISTEN  0  5  0.0.0.0:5101  ...  python3 (hardware-service)
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>LISTEN  0  5  0.0.0.0:5000  ...  python3 (propforge)
 </code></pre></div>
 <p>Check service logs if something is not listening:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>hardware-service<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span><span class="w"> </span>--no-pager
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>propforge<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span><span class="w"> </span>--no-pager
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>hardware-service<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span><span class="w"> </span>--no-pager
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>propforge<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span><span class="w"> </span>--no-pager
 </code></pre></div>
 <h2 id="7-open-the-interface">7. Open the interface<a class="headerlink" href="#7-open-the-interface" title="Permanent link">&para;</a></h2>
 <p>Navigate to <code>http://&lt;pi-hostname&gt;:5000</code> in a browser on the same network. You should see the PropForge projects page.</p>
@@ -1629,13 +1637,13 @@
 <p>Run <code>hostname</code> on the Pi to see its hostname. On most home networks you can reach it at <code>http://raspberrypi.local:5000</code>. If mDNS does not work, use the IP address shown by <code>ip addr show wlan0</code>.</p>
 </div>
 <h2 id="managing-services">Managing services<a class="headerlink" href="#managing-services" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Restart after code changes</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>hardware-service
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>propforge
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># View live logs</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>propforge<span class="w"> </span>-f
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>hardware-service<span class="w"> </span>-f
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Restart after code changes</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>hardware-service
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>propforge
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># View live logs</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>propforge<span class="w"> </span>-f
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>hardware-service<span class="w"> </span>-f
 </code></pre></div>
 
 

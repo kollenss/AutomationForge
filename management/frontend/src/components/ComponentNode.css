@@ -13,35 +13,26 @@
 
 @keyframes nodePulse {
   0% {
-    animation-timing-function: cubic-bezier(0, 0, 0.05, 1);
+    animation-timing-function: cubic-bezier(0, 0, 0.08, 1);
     box-shadow: 0 0 0 0   color-mix(in srgb, var(--node-color) 100%, transparent),
                 0 0 0px   transparent;
     border-color: var(--node-color);
     border-width: 1.5px;
     transform: scale(1);
   }
-  5% {
-    animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1);
-    box-shadow: 0 0 0 3px  color-mix(in srgb, var(--node-color) 100%, white),
-                0 0 35px   color-mix(in srgb, var(--node-color)  90%, white),
-                0 0 70px   color-mix(in srgb, var(--node-color)  55%, transparent);
+  15% {
+    animation-timing-function: cubic-bezier(0.4, 0, 0.8, 1);
+    box-shadow: 0 0 0 28px color-mix(in srgb, var(--node-color) 80%, white),
+                0 0 55px   color-mix(in srgb, var(--node-color) 60%, white),
+                0 0 90px   color-mix(in srgb, var(--node-color) 30%, transparent);
     border-color: white;
     border-width: 3px;
-    transform: scale(1.14);
-  }
-  18% {
-    animation-timing-function: ease-out;
-    box-shadow: 0 0 0 18px color-mix(in srgb, var(--node-color)  55%, transparent),
-                0 0 45px   color-mix(in srgb, var(--node-color)  35%, transparent),
-                0 0 80px   color-mix(in srgb, var(--node-color)  18%, transparent);
-    border-color: color-mix(in srgb, var(--node-color) 100%, white);
-    border-width: 2px;
-    transform: scale(1);
+    transform: scale(1.13);
   }
   100% {
-    box-shadow: 0 0 0 55px color-mix(in srgb, var(--node-color)  0%, transparent),
-                0 0 90px   transparent,
-                0 0 0px    transparent;
+    box-shadow: 0 0 0 0   color-mix(in srgb, var(--node-color) 20%, transparent),
+                0 0 0px   transparent,
+                0 0 0px   transparent;
     border-color: var(--node-color);
     border-width: 1.5px;
     transform: scale(1);

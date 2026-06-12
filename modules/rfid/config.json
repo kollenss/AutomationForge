@@ -1,7 +1,7 @@
 {
   "password": "BOGEN",
   "rfid_readers": [
-    {"id": 1, "label": "Vault",    "ce_gpio": 8,  "rst_gpio": 25},
+    {"id": 1, "label": "Vault",    "ce_gpio": 8,  "rst_gpio": 26},
     {"id": 2, "label": "Lobby",    "ce_gpio": 5,  "rst_gpio": 26},
     {"id": 3, "label": "Security", "ce_gpio": 6,  "rst_gpio": 26},
     {"id": 4, "label": "Server",   "ce_gpio": 16, "rst_gpio": 26}

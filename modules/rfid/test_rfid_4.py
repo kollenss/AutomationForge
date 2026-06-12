@@ -177,10 +177,12 @@ def test_reader(spi, reader, timeout=10):
     print(f"\n── Reader {rid} ({lbl}) — CE=GPIO{cs}, RST=GPIO{rst} ──")
     _reset(spi, cs, rst)
     ver = _get_version(spi, cs)
-    if ver in (0x91, 0x92):
-        print(f"  ✓ RC522 found (version 0x{ver:02X})")
+    if ver in (0x91, 0x92, 0x88, 0xB2):
+        print(f"  ✓ RC522 found (version 0x{ver:02X}{' — clone variant' if ver not in (0x91,0x92) else ''})")
+    elif ver in (0xEE,):
+        print(f"  ✓ RC522 clone found (version 0x{ver:02X})")
     elif ver == 0x00 or ver == 0xFF:
-        print(f"  ✗ No response (version=0x{ver:02X}) — check wiring!")
+        print(f"  ✗ No response (version=0x{ver:02X}) — check wiring or stop hardware-service first!")
         return False
     else:
         print(f"  ? Unexpected version 0x{ver:02X} — may still work")
@@ -206,6 +208,17 @@ def test_reader(spi, reader, timeout=10):
 def main():
     print("=== RC522 4-Reader SPI Test ===")
     print("SPI0, shared MISO/MOSI/CLK, individual GPIO CS pins\n")
+
+    # Warn if hardware-service is running — it holds the SPI bus for Reader 1
+    try:
+        import subprocess
+        r = subprocess.run(['systemctl', 'is-active', 'hardware-service'],
+                          capture_output=True, text=True)
+        if r.stdout.strip() == 'active':
+            print("⚠️  hardware-service is running — Reader 1 (CE0/GPIO8) may fail.")
+            print("   Stop it first with: sudo systemctl stop hardware-service\n")
+    except Exception:
+        pass
 
     _setup_gpio()
 

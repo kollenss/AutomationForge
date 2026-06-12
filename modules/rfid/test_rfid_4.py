@@ -19,7 +19,7 @@ import spidev
 
 # ── Config ─────────────────────────────────────────────────────────────────
 READERS = [
-    {'id': 1, 'label': 'Vault',    'ce': 8,  'rst': 25},
+    {'id': 1, 'label': 'Vault',    'ce': 8,  'rst': 26},
     {'id': 2, 'label': 'Lobby',    'ce': 5,  'rst': 26},
     {'id': 3, 'label': 'Security', 'ce': 6,  'rst': 26},
     {'id': 4, 'label': 'Server',   'ce': 16, 'rst': 26},
@@ -83,10 +83,12 @@ def _clear_bits(spi, cs, reg, mask):
 
 def _reset(spi, cs, rst_pin):
     GPIO.setup(rst_pin, GPIO.OUT)
+    GPIO.output(rst_pin, GPIO.LOW)
+    time.sleep(0.1)
     GPIO.output(rst_pin, GPIO.HIGH)
-    time.sleep(0.05)
+    time.sleep(0.1)
     _write_reg(spi, cs, REG_COMMAND, PCD_RESETPHASE)
-    time.sleep(0.05)
+    time.sleep(0.1)
     # Timer: auto mode, prescaler
     _write_reg(spi, cs, 0x2A, 0x8D)
     _write_reg(spi, cs, 0x2B, 0x3E)

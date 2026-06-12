@@ -1,14 +1,16 @@
 import json
+import os
 import queue
+import tempfile
 import threading
 import time
 import urllib.request as _req
 
 # ── Combo Lock debug log ────────────────────────────────────────────────────
-# Written to /tmp/combo_debug.log while the engine is running.
+# Written to <tmpdir>/combo_debug.log while the engine is running.
 # _log() is safe to call from any thread — no file I/O, only a queue put.
 
-_LOG_FILE   = '/tmp/combo_debug.log'
+_LOG_FILE   = os.path.join(tempfile.gettempdir(), 'combo_debug.log')
 _log_q      = queue.Queue()
 _log_t0     = time.time()
 

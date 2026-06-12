@@ -9,7 +9,11 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from engine import GameEngine
 
-sys.path.insert(0, '/home/pi/modules')
+# Add the modules directory to sys.path for local development (no-op on Pi
+# where the service already runs from that directory).
+_MODULES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'modules')
+if _MODULES_DIR not in sys.path:
+    sys.path.insert(0, _MODULES_DIR)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'projects')
@@ -25,11 +29,12 @@ engine = GameEngine()
 engine.set_emit(socketio.emit)
 
 
-def _persist_scene_state(scene_id, active):
+def _persist_scene_state(scene_id, active, project_id=None):
     """Persist scene active-flag to JSON and push socket event. Used as engine callback."""
-    if not _active_project_id:
+    pid = project_id or _active_project_id
+    if not pid:
         return
-    path = _project_path(_active_project_id)
+    path = _project_path(pid)
     if not os.path.exists(path):
         return
     project = _read_json(path)
@@ -107,11 +112,14 @@ def _autoload_engine():
     except Exception:
         return
     projects = [_read_json(os.path.join(DATA_DIR, f)) for f in files if f.endswith('.json')]
-    projects = [p for p in projects if p]
+    projects = [p for p in projects if p and 'id' in p and 'name' in p]
     if not projects:
         return
     latest = max(projects, key=lambda p: p.get('updated_at', ''))
     _active_project_id = latest['id']
+    # Ensure all scenes are active so hardware events fire on startup
+    for scene in latest.get('scenes', []):
+        scene.setdefault('active', True)
     _reload_engine(latest)
 
 
@@ -167,7 +175,7 @@ def api_list_projects():
         if not fname.endswith('.json'):
             continue
         p = _read_json(os.path.join(DATA_DIR, fname))
-        if p:
+        if p and 'id' in p and 'name' in p:
             projects.append({
                 'id': p['id'],
                 'name': p['name'],
@@ -296,6 +304,12 @@ def api_hw_relay_state():
     return jsonify(data), status
 
 
+@app.route('/api/hardware/text_input')
+def api_hw_text_input_state():
+    data, status = _hw_get('/hardware/text_input/state')
+    return jsonify(data), status
+
+
 @app.route('/api/hardware/relay/<int:channel>/<action>', methods=['POST'])
 def api_hw_relay_set(channel, action):
     if channel not in (1, 2, 3, 4) or action not in ('on', 'off'):
@@ -378,7 +392,13 @@ def api_engine_activate_scene():
     project = _read_json(path)
     if not any(s['id'] == scene_id for s in project.get('scenes', [])):
         return jsonify({'error': 'Scene not found'}), 404
-    _persist_scene_state(scene_id, True)
+    # Ensure this project is loaded in the engine (covers the case where the
+    # server restarted after the project was created, or a different project
+    # was active before).
+    if project_id != _active_project_id:
+        _active_project_id = project_id
+        _reload_engine(project)
+    _persist_scene_state(scene_id, True, project_id=project_id)
     engine.activate_scene(scene_id)
     return jsonify({'ok': True, 'scene_id': scene_id, 'active': True})
 
@@ -397,7 +417,10 @@ def api_engine_deactivate_scene():
     project = _read_json(path)
     if not any(s['id'] == scene_id for s in project.get('scenes', [])):
         return jsonify({'error': 'Scene not found'}), 404
-    _persist_scene_state(scene_id, False)
+    if project_id != _active_project_id:
+        _active_project_id = project_id
+        _reload_engine(project)
+    _persist_scene_state(scene_id, False, project_id=project_id)
     engine.deactivate_scene(scene_id)
     return jsonify({'ok': True, 'scene_id': scene_id, 'active': False})
 

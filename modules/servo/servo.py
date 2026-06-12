@@ -13,7 +13,12 @@ Hardware PWM pins on Pi 3B: GPIO12, GPIO13, GPIO18, GPIO19.
   GPIO13 (Pin 33) — PWM1, backup / second servo
 """
 
-import pigpio
+try:
+    import pigpio
+    _HW_AVAILABLE = True
+except ImportError:
+    _HW_AVAILABLE = False
+    print('[servo] pigpio not available — stub mode (commands logged only)')
 
 MANIFEST = {
     'type':  'servo',
@@ -62,6 +67,10 @@ def _angle_to_duty(angle):
 
 class Device:
     def __init__(self):
+        if not _HW_AVAILABLE:
+            self._pi = None
+            print('[servo] stub mode')
+            return
         self._pi = pigpio.pi()
         if not self._pi.connected:
             raise RuntimeError('pigpiod not running — start with: sudo systemctl start pigpiod')
@@ -71,6 +80,9 @@ class Device:
 
     def execute(self, cmd, **kwargs):
         pin = int(kwargs.get('gpio_pin', 12))
+        if not _HW_AVAILABLE:
+            print(f'[servo] stub execute: {cmd} gpio={pin} angle={kwargs.get("angle", "—")}')
+            return self.get_state()
         if pin not in _HW_PWM_PINS:
             raise ValueError(
                 f'GPIO{pin} does not support hardware PWM. '

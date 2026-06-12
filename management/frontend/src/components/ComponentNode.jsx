@@ -301,6 +301,31 @@ function TextInputStatus({ inputId }) {  const [text, setText] = useState('')
   )
 }
 
+function TextInputMobileLink({ inputId }) {
+  const [port, setPort] = useState(5200)
+
+  useEffect(() => {
+    fetch('/api/hardware/text_input')
+      .then(r => r.ok ? r.json() : null)
+      .then(s => { if (s?.port) setPort(s.port) })
+      .catch(() => {})
+  }, [])
+
+  const url = `http://${window.location.hostname}:${port}?id=${inputId}`
+  return (
+    <a
+      className="cn-mobile-link"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+    >
+      Open mobile page &uarr;
+    </a>
+  )
+}
+
 function TextInputSim({ inputId }) {
   const [val, setVal] = useState('')
 
@@ -497,6 +522,9 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'text_input' && (
         <TextInputSim inputId={data.params?.input_id ?? '1'} />
+      )}
+      {data.componentType === 'text_input' && (
+        <TextInputMobileLink inputId={data.params?.input_id ?? '1'} />
       )}
 
       {inputs.length > 0 && (

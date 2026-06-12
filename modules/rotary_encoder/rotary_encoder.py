@@ -4,8 +4,13 @@ Define physical encoders in ENCODERS below — one entry per connected encoder.
 Each canvas card selects an encoder by ID.
 """
 
-import pigpio
-from encoder import RotaryEncoder
+try:
+    import pigpio
+    from encoder import RotaryEncoder
+    _HW_AVAILABLE = True
+except ImportError as _e:
+    _HW_AVAILABLE = False
+    print(f'[ky040] pigpio/encoder not available — stub mode ({_e})')
 
 # ── Physical encoder definitions ───────────────────────────────────────────
 # Add one entry per connected KY-040. ID must be unique.
@@ -55,10 +60,15 @@ def get_components():
 
 class Device:
     def __init__(self):
+        self._event_cb = None
+        self._encoders = {e['id']: {'position': 0, 'last_delta': 0, 'last_click_tick': 0}
+                          for e in ENCODERS}
+        if not _HW_AVAILABLE:
+            print('[ky040] stub mode — use the simulate endpoint to fire encoder events')
+            return
         self._pi = pigpio.pi()
         if not self._pi.connected:
             raise RuntimeError('pigpiod not running — start with: sudo pigpiod')
-        self._event_cb = None
         self._encoders = {}
         for e in ENCODERS:
             enc = RotaryEncoder(
@@ -111,4 +121,13 @@ class Device:
             if eid in self._encoders:
                 self._encoders[eid]['position']   = 0
                 self._encoders[eid]['last_delta']  = 0
+        elif cmd == 'simulate':
+            # Simulate a turn or click event — useful in local/stub mode.
+            eid   = int(kwargs.get('encoder_id', ENCODERS[0]['id']))
+            event = kwargs.get('event', 'delta')   # 'delta' or 'click'
+            if event == 'delta':
+                delta = int(kwargs.get('delta', 1))
+                self._on_step(eid, delta)
+            elif event == 'click':
+                self._on_click(eid, 0)
         return self.get_state()

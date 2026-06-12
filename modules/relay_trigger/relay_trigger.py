@@ -1,5 +1,11 @@
 import time
-from pylibftdi import BitBangDevice
+
+try:
+    from pylibftdi import BitBangDevice
+    _HW_AVAILABLE = True
+except ImportError:
+    _HW_AVAILABLE = False
+    print('[relay] pylibftdi not available — stub mode (no hardware control)')
 
 CHANNEL_BITS = {1: 0x02, 2: 0x08, 3: 0x20, 4: 0x80}
 
@@ -36,14 +42,28 @@ def get_components():
 
 class RelayBoard:
     def __init__(self):
+        if not _HW_AVAILABLE:
+            self._port = 0x00
+            print('[relay] RelayBoard stub — commands logged only')
+            return
         self._bb = BitBangDevice('DAE000iW')
         self._bb.direction = 0xFF
         self._bb.port = 0x00
 
     def set_mask(self, mask):
+        if not _HW_AVAILABLE:
+            self._port = mask & 0xFF
+            return
         self._bb.port = mask & 0xFF
 
     def set(self, channel, on=True):
+        if not _HW_AVAILABLE:
+            bit = CHANNEL_BITS.get(channel, 0)
+            if on:
+                self._port |= bit
+            else:
+                self._port &= ~bit
+            return
         bit = CHANNEL_BITS.get(channel, 0)
         if on:
             self._bb.port |= bit
@@ -51,12 +71,19 @@ class RelayBoard:
             self._bb.port &= ~bit
 
     def all_off(self):
+        if not _HW_AVAILABLE:
+            self._port = 0x00
+            return
         self._bb.port = 0x00
 
     def get_mask(self):
+        if not _HW_AVAILABLE:
+            return self._port
         return self._bb.port
 
     def close(self):
+        if not _HW_AVAILABLE:
+            return
         try:
             self._bb.port = 0x00
             self._bb.close()

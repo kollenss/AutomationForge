@@ -2,8 +2,14 @@ import json
 import threading
 import time
 from pathlib import Path
-import RPi.GPIO as GPIO
-import spidev
+
+try:
+    import RPi.GPIO as GPIO
+    import spidev
+    _HW_AVAILABLE = True
+except ImportError:
+    _HW_AVAILABLE = False
+    print('[rfid] RPi.GPIO/spidev not available — stub mode (no hardware scanning)')
 
 _CONFIG_PATH = Path(__file__).parent / 'config.json'
 
@@ -182,6 +188,10 @@ class Device:
         self._last = {}
         self._readers = []
         self._spi = None
+
+        if not _HW_AVAILABLE:
+            print('[rfid] stub mode — use "simulate" command to fire card events')
+            return
 
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)

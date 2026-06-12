@@ -197,3 +197,17 @@
 }
 .cn-last-err .cn-text-input-value { color: #f87171; }
 .cn-last-err.cn-text-input-flash { background: #f8717120; }
+
+.cn-mobile-link {
+  display: block;
+  margin: 2px 8px 4px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  color: #06b6d4;
+  text-decoration: none;
+  border: 1px solid #06b6d440;
+  border-radius: 4px;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cn-mobile-link:hover { background: #06b6d415; border-color: #06b6d4; }

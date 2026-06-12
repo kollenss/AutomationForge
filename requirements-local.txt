@@ -1,0 +1,10 @@
+# Python dependencies for running AutomationForge locally (Windows / macOS / Linux without Pi hardware).
+# Pi-specific libraries (pigpio, RPi.GPIO, spidev, pylibftdi, rpi_ws281x) are intentionally
+# excluded — all hardware modules fall back to stub mode when these are absent.
+#
+# Install:
+#   pip install -r requirements-local.txt
+
+flask>=3.0
+flask-socketio>=5.3
+pyserial>=3.5        # optional — needed only if a real DFPlayer Mini is connected

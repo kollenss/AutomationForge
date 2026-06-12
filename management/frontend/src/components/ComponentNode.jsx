@@ -408,7 +408,13 @@ function TimerStatus({ nodeId, duration }) {
 }
 
 export default function ComponentNode({ id, data, selected }) {
-  const inputs  = data.inputHandles  || []
+  const allInputs = data.inputHandles || []
+  const inputs = data.componentType === 'checklist'
+    ? allInputs.filter(h => {
+        const m = h.key.match(/^step_(\d+)$/)
+        return !m || parseInt(m[1]) <= parseInt(data.params?.length ?? 3)
+      })
+    : allInputs
   const outputs = data.outputHandles || []
   const tb = data.layoutDir === 'TB'
 

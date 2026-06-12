@@ -187,7 +187,7 @@
           "icon": "🔒",
           "params": [
             {"key": "password",     "label": "Password",     "type": "password", "default": ""},
-            {"key": "max_attempts", "label": "Max Attempts", "type": "number",   "default": 3}
+            {"key": "max_attempts", "label": "Max Attempts", "type": "number", "min": 1, "max": 99, "default": 3}
           ],
           "inputs": [
             {"key": "attempt", "label": "Password Input", "description": "Receives a password string to check against the configured password"}
@@ -204,7 +204,7 @@
           "color": "#8b5cf6",
           "icon": "✓",
           "params": [
-            {"key": "length",        "label": "Number of Steps", "type": "number",  "default": 3},
+            {"key": "length",        "label": "Number of Steps", "type": "number", "min": 1, "max": 6, "default": 3},
             {"key": "reset_on_fail", "label": "Reset on wrong order", "type": "boolean", "default": true}
           ],
           "inputs": [
@@ -227,7 +227,7 @@
           "color": "#8b5cf6",
           "icon": "⏱",
           "params": [
-            {"key": "duration_s", "label": "Duration (s)", "type": "number",  "default": 60},
+            {"key": "duration_s", "label": "Duration (s)", "type": "number", "min": 1, "default": 60},
             {"key": "auto_start", "label": "Auto Start",  "type": "boolean", "default": false}
           ],
           "inputs": [

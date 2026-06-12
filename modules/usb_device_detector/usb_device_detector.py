@@ -10,7 +10,7 @@ MANIFEST = {
     'label': 'USB Device Detector',
 }
 
-_POLL_INTERVAL = 0.5  # seconds
+_POLL_INTERVAL = 2.0  # seconds — lsusb/lsblk are expensive on Pi 3B (~50-100ms each)
 
 
 def get_components():

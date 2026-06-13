@@ -19,7 +19,7 @@ import spidev
 
 # ── Config ─────────────────────────────────────────────────────────────────
 READERS = [
-    {'id': 1, 'label': 'Vault',    'ce': 8,  'rst': 26},
+    {'id': 1, 'label': 'Vault',    'ce': 4,  'rst': 26},
     {'id': 2, 'label': 'Lobby',    'ce': 5,  'rst': 26},
     {'id': 3, 'label': 'Security', 'ce': 6,  'rst': 26},
     {'id': 4, 'label': 'Server',   'ce': 16, 'rst': 26},

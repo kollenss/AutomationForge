@@ -8,14 +8,17 @@
 
 | GPIO (BCM) | Board Pin | Signal | Komponent | Modul |
 |---|---|---|---|---|
+| GPIO4  | Pin 7  | Digital OUT | RC522 CS — Vault (SDA1 Svart) | `rfid.py` |
+| GPIO5  | Pin 29 | Digital OUT | RC522 CS — Lobby (SDA2 Vit) | `rfid.py` |
+| GPIO6  | Pin 31 | Digital OUT | RC522 CS — Security (SDA3 Grå) | `rfid.py` |
 | GPIO7  | Pin 26 | SPI0 CE1 | MAX7219 CS | `max7219_display.py` |
-| GPIO8  | Pin 24 | SPI0 CE0 | RC522 CS (Valvet) | `rfid.py` |
 | GPIO9  | Pin 21 | SPI0 MISO | RC522 MISO (delad SPI-buss) | — |
 | GPIO10 | Pin 19 | SPI0 MOSI | MAX7219 DIN + RC522 MOSI (delad) | — |
 | GPIO11 | Pin 23 | SPI0 SCLK | MAX7219 CLK + RC522 SCK (delad) | — |
+| GPIO16 | Pin 36 | Digital OUT | RC522 CS — Server (SDA4 Lila) | `rfid.py` |
 | GPIO17 | Pin 11 | Digital IN | KY-040 CLK | `rotary_encoder.py` |
 | GPIO22 | Pin 15 | Digital IN | KY-040 SW (knapp) | `rotary_encoder.py` |
-| GPIO25 | Pin 22 | Digital OUT | RC522 RST (Valvet) | `rfid.py` |
+| GPIO26 | Pin 37 | Digital OUT | RC522 RST — delad alla läsare | `rfid.py` |
 | GPIO27 | Pin 13 | Digital IN | KY-040 DT | `rotary_encoder.py` |
 | —      | USB   | `/dev/ttyUSB0` | Denkovi Relay Board (4 kanaler) | `relay_trigger.py` |
 | —      | USB   | `/dev/ttyUSB1` | DFPlayer Mini (MP3) | `dfplayer.py` |
@@ -26,13 +29,9 @@
 
 | GPIO (BCM) | Board Pin | Signal | Komponent | Våning |
 |---|---|---|---|---|
-| GPIO5  | Pin 29 | Digital OUT | RC522 CS — Lobby (Ghost) | V1 |
-| GPIO6  | Pin 31 | Digital OUT | RC522 CS — Säkerhetscentral (Wraith) | V1 |
 | GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 | V3 |
-| GPIO16 | Pin 36 | Digital OUT | RC522 CS — Serverrum (Circuit) | V1 |
 | GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip, 10 LED (index 0–2: V1, 3–5: V2, 6–9: V3) | V1+V2+V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
-| GPIO26 | Pin 37 | Digital OUT | RC522 RST — delad för alla V1-läsare | V1 |
 
 ---
 

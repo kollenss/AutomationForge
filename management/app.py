@@ -310,6 +310,23 @@ def api_hw_text_input_state():
     return jsonify(data), status
 
 
+@app.route('/api/hardware/ws2812b/<cmd>', methods=['POST'])
+def api_hw_ws2812b(cmd):
+    allowed = ('set_color', 'blink', 'pulse', 'chase', 'rainbow', 'off')
+    if cmd not in allowed:
+        return jsonify({'error': 'Invalid command'}), 400
+    body = request.get_json(force=True) or {}
+    data, status = _hw_post(f'/hardware/ws2812b/{cmd}', body)
+    return jsonify(data), status
+
+@app.route('/api/hardware/servo/<cmd>', methods=['POST'])
+def api_hw_servo(cmd):
+    if cmd not in ('set_angle', 'release'):
+        return jsonify({'error': 'Invalid command'}), 400
+    body = request.get_json(force=True) or {}
+    data, status = _hw_post(f'/hardware/servo/{cmd}', body)
+    return jsonify(data), status
+
 @app.route('/api/hardware/relay/<int:channel>/<action>', methods=['POST'])
 def api_hw_relay_set(channel, action):
     if channel not in (1, 2, 3, 4) or action not in ('on', 'off'):

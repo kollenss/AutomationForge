@@ -29,7 +29,8 @@
 
 | GPIO (BCM) | Board Pin | Signal | Komponent | Våning |
 |---|---|---|---|---|
-| GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 | V3 |
+| GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 #1 — K5→P14 ✅ TESTAD | V3 |
+| GPIO13 | Pin 33 | PWM1 (HW) | Servo SG90 #2 — N5→Q13 ✅ TESTAD | V3 |
 | GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip, 10 LED (index 0–2: V1, 3–5: V2, 6–9: V3) | V1+V2+V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
 

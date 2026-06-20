@@ -168,6 +168,97 @@ function RfidSim({ readerId }) {
   )
 }
 
+function LedZoneSim({ gpioPin, firstLed, lastLed, ledCount, brightness }) {
+  const [color, setColor] = useState('red')
+  const [first, setFirst] = useState(String(firstLed))
+  const [last, setLast]   = useState(String(lastLed))
+  const PRESETS = ['red','green','blue','white','yellow','purple','cyan','off']
+
+  function send(cmd) {
+    fetch(`/api/hardware/ws2812b/${cmd}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gpio_pin: gpioPin, first_led: Number(first), last_led: Number(last), led_count: ledCount, brightness, color }),
+    })
+  }
+
+  const numStyle = { width: 32, fontSize: 10, padding: '1px 3px' }
+  const stop = e => e.stopPropagation()
+
+  return (
+    <div className="cn-encoder-sim" style={{ flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>idx</span>
+        <input type="number" min="0" value={first} onChange={e => setFirst(e.target.value)}
+          style={numStyle} onMouseDown={stop} onClick={stop} onKeyDown={stop} />
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>–</span>
+        <input type="number" min="0" value={last} onChange={e => setLast(e.target.value)}
+          style={numStyle} onMouseDown={stop} onClick={stop} onKeyDown={stop} />
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {PRESETS.map(p => (
+          <button key={p} className={`cn-sim-btn${color === p ? ' cn-sim-scan' : ''}`}
+            style={{ fontSize: 10, padding: '1px 5px' }}
+            onMouseDown={stop} onClick={e => { stop(e); setColor(p) }}
+          >{p}</button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {['set_color','blink','pulse','chase','rainbow','off'].map(cmd => (
+          <button key={cmd} className="cn-sim-btn"
+            style={{ fontSize: 10, padding: '1px 5px' }}
+            onMouseDown={stop} onClick={e => { stop(e); send(cmd) }}
+          >{cmd === 'set_color' ? 'set' : cmd}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ServoSim({ gpioPin }) {
+  const [angle, setAngle] = useState('90')
+
+  function send(cmd) {
+    const body = { gpio_pin: gpioPin }
+    if (cmd === 'set_angle') body.angle = Number(angle)
+    fetch(`/api/hardware/servo/${cmd}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
+
+  return (
+    <div className="cn-encoder-sim cn-rfid-sim">
+      <input
+        className="cn-sim-uid"
+        type="number"
+        min="0"
+        max="180"
+        value={angle}
+        onChange={e => setAngle(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') send('set_angle') }}
+        placeholder="0–180°"
+      />
+      <button
+        className="cn-sim-btn cn-sim-scan"
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); send('set_angle') }}
+        title="Move servo to angle"
+      >Set</button>
+      <button
+        className="cn-sim-btn"
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); send('release') }}
+        title="Release servo (no torque)"
+        style={{ marginLeft: 4 }}
+      >Rel</button>
+    </div>
+  )
+}
+
 function UsbSim() {
   const [kind,  setKind]  = useState('yubikey')
   const [mount, setMount] = useState('/media/pi/USB')
@@ -496,8 +587,20 @@ export default function ComponentNode({ id, data, selected }) {
       {data.componentType === 'servo' && (
         <LastValue nodeId={id} />
       )}
+      {data.componentType === 'servo' && (
+        <ServoSim gpioPin={data.params?.gpio_pin ?? 12} />
+      )}
       {data.componentType === 'led_zone' && (
         <LastValue nodeId={id} />
+      )}
+      {data.componentType === 'led_zone' && (
+        <LedZoneSim
+          gpioPin={data.params?.gpio_pin ?? 21}
+          firstLed={data.params?.first_led ?? 0}
+          lastLed={data.params?.last_led ?? 2}
+          ledCount={data.params?.led_count ?? 10}
+          brightness={data.params?.brightness ?? 128}
+        />
       )}
       {data.componentType === 'checklist' && (
         <LastValue nodeId={id} />

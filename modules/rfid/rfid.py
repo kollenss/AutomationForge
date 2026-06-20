@@ -59,6 +59,11 @@ _MI_NOTAG = 1
 _MI_ERR   = 2
 
 
+_GPIO_TO_PIN = {2:3,3:5,4:7,5:29,6:31,7:26,8:24,9:21,10:19,11:23,12:32,13:33,14:8,15:22,16:36,17:11,18:12,19:35,20:38,21:40,22:15,23:16,24:18,25:22,26:37,27:13}
+
+def _gpio_to_pin(gpio):
+    return _GPIO_TO_PIN.get(gpio, '?')
+
 def get_components():
     return [{
         'type': 'rfid_reader',
@@ -74,7 +79,7 @@ def get_components():
                 'label': 'Reader',
                 'type': 'select',
                 'default': READERS[0]['id'],
-                'options': [{'value': r['id'], 'label': f"{r['id']} – {r['label']}"} for r in READERS],
+                'options': [{'value': r['id'], 'label': f"{r['id']} – {r['label']} (GPIO{r['ce_gpio']} / pin {_gpio_to_pin(r['ce_gpio'])})"} for r in READERS],
             },
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader'},
         ],

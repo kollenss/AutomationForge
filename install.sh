@@ -11,12 +11,10 @@ echo "==> PropForge install from: $REPO_DIR"
 # ---------------------------------------------------------------------------
 # 0. Remind user about raspi-config (must be done manually before running this)
 # ---------------------------------------------------------------------------
-echo ""
-echo "NOTE: This script assumes you have already enabled SPI and Serial in"
-echo "      raspi-config → Interface Options before running."
-echo "      Press Ctrl-C now if you have not done this yet, then reboot."
-echo ""
-sleep 3
+echo "==> Enabling SPI and Serial via raspi-config..."
+sudo raspi-config nonint do_spi 0
+sudo raspi-config nonint do_serial_hw 0
+sudo raspi-config nonint do_serial_cons 1
 
 # ---------------------------------------------------------------------------
 # 1. System packages

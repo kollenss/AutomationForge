@@ -250,3 +250,62 @@ Kombinationslåsmekaniken är klar och testad (23/33/26/74 — alla korrekta lå
 2. **Koppla servos** (GPIO 5/6/13/19, Pin 29/31/33/35) — öppnar plexi-lock
 3. **Koppla NeoPixel-ring** (GPIO 18, Pin 12) — belyser diamanten
 4. **Kör vault.py end-to-end** med all hårdvara anslutet
+
+---
+
+## GameForge — Installation på ny Pi
+
+### Ett kommando via SSH
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/kollenss/AutomationForge/main/bootstrap.sh)
+```
+
+Kör detta efter att Pi:n är uppe med SSH-access. Gör automatiskt:
+1. Klonar repot till `/home/pi/AutomationForge`
+2. Aktiverar SPI och Serial via raspi-config
+3. Installerar systempaket (apt) och Python-paket (pip)
+4. Bygger pigpio från källkod (finns inte i Bookworm apt)
+5. Bygger React-frontend (`npm install && npm run build`)
+6. Skapar och startar systemd-tjänsterna
+7. Startar om Pi:n
+
+Efter omstart: **http://\<hostname\>.local:5000**
+
+### Dependencies
+
+**Systempaket (apt):**
+```
+python3-pip python3-venv python3-setuptools git unzip nodejs npm
+```
+
+**Python (pip --break-system-packages):**
+```
+flask flask-socketio pylibftdi mfrc522 RPi.GPIO pigpio
+```
+
+**pigpio:** byggs från källkod — install.sh hanterar detta.
+
+**Frontend:** `npm install && npm run build` i `management/frontend/` → output till `management/static/`.
+
+### Systemd-tjänster
+
+```
+pigpiod           — GPIO-daemon (port -, startar först)
+hardware-service  — Hårdvaru-REST-API (port 5101)
+propforge         — Huvud-Flask-app (port 5000)
+```
+
+```bash
+sudo systemctl status pigpiod hardware-service propforge
+journalctl -u propforge -f
+```
+
+### Lokal utveckling (Windows, utan Pi)
+
+```bash
+pip install flask flask-socketio
+python run_local.py
+```
+
+Alla hårdvarumoduler faller tillbaka till stub-läge utan fysisk hårdvara.

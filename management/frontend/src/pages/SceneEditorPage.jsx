@@ -40,7 +40,7 @@ function computeLayout(nodes, edges, direction) {
 }
 
 
-function EditorInner({ project, scene, library }) {
+function EditorInner({ project, scene, library, onReloadLibrary }) {
   const navigate = useNavigate()
   const reactFlowWrapper = useRef(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
@@ -395,7 +395,7 @@ function EditorInner({ project, scene, library }) {
         </div>
 
         <div className="se-right-panel">
-          <ComponentLibrary library={library} />
+          <ComponentLibrary library={library} onReload={onReloadLibrary} />
         </div>
       </div>
 
@@ -431,6 +431,11 @@ export default function SceneEditorPage() {
       .catch(err => setError(err.message))
   }, [projectId, sceneId])
 
+  const reloadLibrary = useCallback(
+    () => api.getComponents().then(setLibrary).catch(() => {}),
+    [],
+  )
+
   if (error) return (
     <div style={{ padding: 32, color: 'var(--danger)' }}>
       {error} — <button onClick={() => navigate('/projects')}>Back</button>
@@ -442,7 +447,7 @@ export default function SceneEditorPage() {
 
   return (
     <ReactFlowProvider>
-      <EditorInner project={project} scene={scene} library={library} />
+      <EditorInner project={project} scene={scene} library={library} onReloadLibrary={reloadLibrary} />
     </ReactFlowProvider>
   )
 }

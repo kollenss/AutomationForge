@@ -101,7 +101,9 @@ sudo tee /etc/systemd/system/propforge.service > /dev/null << EOF
 [Unit]
 Description=PropForge Engine
 After=hardware-service.service
-Requires=hardware-service.service
+# Wants (inte Requires): omstart av hardware-service (t.ex. "Restart Hardware"-
+# knappen i UI:t) får INTE cascade-stoppa propforge.
+Wants=hardware-service.service
 
 [Service]
 ExecStart=/usr/bin/python3 $REPO_DIR/management/app.py

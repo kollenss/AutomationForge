@@ -1,6 +1,8 @@
 import json
 import os
+import subprocess
 import sys
+import time
 import uuid
 import urllib.request as _urllib_req
 import urllib.error as _urllib_err
@@ -335,6 +337,55 @@ def api_hw_relay_set(channel, action):
     if status == 200 and isinstance(data.get('state'), dict):
         socketio.emit('relay_state', data['state'])
     return jsonify(data), status
+
+
+@app.route('/api/hardware/restart', methods=['POST'])
+def api_hw_restart():
+    """Restart the hardware service so it re-probes newly wired hardware.
+    Hardware modules only initialise devices at startup — there is no hot
+    re-probe — so a restart is the supported way to pick up new wiring."""
+    try:
+        subprocess.run(
+            ['sudo', 'systemctl', 'restart', 'hardware-service'],
+            check=True, capture_output=True, timeout=30,
+        )
+    except subprocess.CalledProcessError as e:
+        msg = (e.stderr or b'').decode(errors='replace').strip() or 'systemctl restart failed'
+        return jsonify({'error': msg}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    # The service serves /hardware only after _load_modules() has finished
+    # initialising every device, so a successful GET is our readiness signal.
+    deadline = time.time() + 12
+    hw = None
+    while time.time() < deadline:
+        data, status = _hw_get('/hardware')
+        if status == 200 and isinstance(data, list):
+            hw = data
+            break
+        time.sleep(0.5)
+
+    if hw is None:
+        return jsonify({'ok': True, 'connected': [],
+                        'warning': 'service restarted but not responding yet'}), 200
+
+    connected = [{
+        'type':      d.get('type'),
+        'label':     d.get('label'),
+        'connected': d.get('connected', False),
+    } for d in hw]
+    return jsonify({'ok': True, 'connected': connected}), 200
+
+
+@app.route('/api/hardware/status')
+def api_hw_status():
+    """Lightweight health check for the hardware service — used by the UI to
+    show whether it is up. Returns up + count of connected devices."""
+    data, status = _hw_get('/hardware')
+    up = status == 200 and isinstance(data, list)
+    connected = sum(1 for d in data if d.get('connected')) if up else 0
+    return jsonify({'up': up, 'connected': connected})
 
 
 # ── Engine ─────────────────────────────────────────────────────────────────

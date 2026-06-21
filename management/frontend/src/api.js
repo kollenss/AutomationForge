@@ -28,6 +28,8 @@ async function engine(path, body) {
 
 export const api = {
   getComponents:              ()           => req('GET',    '/components'),
+  restartHardware:            ()           => req('POST',   '/hardware/restart'),
+  hardwareStatus:             ()           => req('GET',    '/hardware/status'),
   getRelayState:              ()           => req('GET',    '/hardware/relay'),
   setRelay:   (channel, action)            => req('POST',   `/hardware/relay/${channel}/${action}`),
   listProjects:               ()           => req('GET',    '/projects'),

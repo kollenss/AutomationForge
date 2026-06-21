@@ -26,22 +26,22 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 ## Development Setup
 
-**Pi is source of truth for all code.** Edit files directly via Samba share.
+**GameForge** (working title) runs on Raspberry Pi. The setup now lives entirely on **ninja** after migrating off the deprecated diamond:
 
-| | Path |
-|---|---|
-| Pi IP | `192.168.68.53` |
-| Samba share | `\\192.168.68.53\diamond` → maps to `/home/pi/` |
-| Windows drive | `Z:\` |
-| SSH | `ssh pi@192.168.68.53` |
+| Role | Host | IP | Notes |
+|---|---|---|---|
+| **Editing + runtime + debugging** | `ninja.local` | `192.168.68.63` | `Z:\` is Samba-mapped here (`Z:\` = `/home/pi/AutomationForge/`). SSH MCP points here. Services (`propforge`, `hardware-service`, `pigpiod`) run here. |
+| **diamond.local** | — | — | **Deprecated** (WiFi broken). Reachable only via an SSH jump through ninja. No longer used for editing or runtime. |
+
+> Migration done 2026-06-21: Samba share `\\192.168.68.63\forge` → `/home/pi/AutomationForge`, `Z:` remapped there. Editing and runtime are now the same machine — no more git round-trip between two Pis.
 
 ### Workflow
 
-**Z:\ (Samba) — create and edit all files here.**
-All file creation, editing, and reading goes through `Z:\`. Claude Code uses this drive directly. `Z:\` = `/home/pi/` on the Pi.
+**Z:\ (Samba) — create and edit all files here.** Claude Code uses this drive directly. `Z:\` = ninja:`/home/pi/AutomationForge/`, so `Z:\management\` = `/home/pi/AutomationForge/management/`.
 
-**SSH — run scripts, check logs, debug.**
-Use SSH to execute scripts, tail logs, restart services, check hardware, etc. Never edit files over SSH.
+**SSH MCP (→ ninja) — run scripts, build frontend, tail logs, restart services, debug.** Never edit files over SSH.
+
+**The systemd service is `propforge`**, not `gameforge`. GameForge is the product's working title.
 
 ### MCP Tools – Best Fit
 

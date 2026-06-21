@@ -8,28 +8,24 @@ Innan du skriver en enda rad kod eller föreslår en lösning, läs:
 
 ---
 
-## Källkod & filåtkomst
+## Miljö & topologi  (uppdaterad 2026-06-21)
 
-Källkoden redigeras **lokalt på Windows-klienten** via Samba-share:
+**GameForge** är arbetsnamnet på plattformen. Systemd-tjänsten heter **`propforge`** (inte `propforge`).
 
-- **Windows-sökväg:** `Z:\management\` (rooten för detta projekt)
-- **Samma katalog på Pi:** `/home/pi/management/`
-- `Z:` är en nätverksdisk monterad mot Pi:ns `/home/pi/management/`
+Allt ligger nu på **ninja** efter migrationen från den deprecade diamond:
 
-**Använd alltid `Z:\management\...` som sökväg** när du läser eller redigerar filer.  
-Git-kommandon (`git push` etc.) körs via **Bash-verktyget** direkt på Windows-klienten: `cd /z && git push`.  
-Z:-shatten är monterad på Windows-maskinen — Bash-verktyget kör där och har tillgång till den.  
-**Använd aldrig SSH MCP för git push.**  
-Bygge (`npm run build`) och `systemctl restart` körs via **SSH MCP** på Pi:n.
+| Roll | Host | IP | Detalj |
+|---|---|---|---|
+| **Redigering + runtime + felsökning** | `ninja.local` | `192.168.68.63` | `Z:\` är Samba-mappad hit (`\\192.168.68.63\forge` → `/home/pi/AutomationForge`), så `Z:\management\` = `/home/pi/AutomationForge/management`. **SSH MCP pekar hit.** Tjänsterna kör här. OS: Debian 13 (trixie). |
+| **diamond.local** | — | — | **Deprecated** (WiFi-problem). Nås bara via SSH-hopp genom ninja. Används ej längre för redigering eller runtime. |
 
-## Serveråtkomst
+> Migration klar 2026-06-21: redigering och runtime är nu samma maskin — `Z:\management\app.py` är exakt den fil `propforge` kör.
 
-Projektet körs på en Raspberry Pi 3B. Använd **SSH MCP** (`mcp__mcprouter__ssh_run`) för att köra kommandon på servern.
+### Filåtkomst & kommandon
 
-- **Host:** `diamond.local` (IP: 192.168.68.53)
-- **OS:** Raspbian GNU/Linux 12 (Bookworm)
-- **Källkod på Pi:** `/home/pi/management/`
-- **Hårdvarumoduler:** `/home/pi/modules/`
+- **Redigera alla filer via `Z:\management\...`** (Claude Code Read/Edit). Aldrig över SSH.
+- **Git** (`git push` etc.) körs via **Bash-verktyget** på Windows-klienten: `cd /z && git push`. Aldrig via SSH MCP.
+- **Bygge (`npm run build`), `systemctl`, loggar, felsökning** körs via **SSH MCP** (→ ninja). Sökvägar på ninja: `/home/pi/AutomationForge/...`.
 
 ## Tjänster (systemd)
 
@@ -38,10 +34,10 @@ Alla tjänster startar automatiskt vid Pi-boot. Starta/stoppa/status manuellt:
 ```bash
 sudo systemctl start|stop|restart pigpiod
 sudo systemctl start|stop|restart hardware-service
-sudo systemctl start|stop|restart gameforge
+sudo systemctl start|stop|restart propforge
 ```
 
-Startordning: **pigpiod → hardware-service → gameforge** (hanteras av systemd via `Requires=`)
+Startordning: **pigpiod → hardware-service → propforge** (hanteras av systemd via `Requires=`)
 
 Floor 2 terminal startas fortfarande manuellt:
 ```bash
@@ -56,18 +52,18 @@ ss -tlnp | grep -E '5000|5101|8080'
 ## Bygga frontend
 
 ```bash
-cd /home/pi/management/frontend && npm run build
+cd /home/pi/AutomationForge/management/frontend && npm run build
 ```
 
-Output hamnar i `../static/` (serveras direkt av Flask). Kör alltid på Pi via SSH — npm fungerar inte på Samba-shatten (EPERM på nätverksdisk).
+Output hamnar i `../static/` (serveras direkt av Flask). Kör alltid på ninja via SSH — npm fungerar inte på Samba-shatten (EPERM på nätverksdisk).
 
-Efter build: `sudo systemctl restart gameforge`
+Efter build: `sudo systemctl restart propforge`
 
 ## Loggar
 
 ```bash
 journalctl -u hardware-service -f
-journalctl -u gameforge -f
+journalctl -u propforge -f
 journalctl -u pigpiod -n 20 --no-pager
 tail -f /tmp/terminal_web.log
 ```
@@ -81,7 +77,7 @@ Kod, kommentarer och konversation med användaren är på svenska.
 
 - **pigpiod:** systemd-daemon — GPIO-åtkomst för pigpio (KY-040 encoder etc.)
 - **hardware-service:** Flask, port 5101 — äger all hårdvara, `/home/pi/modules/`
-- **gameforge:** Flask + Socket.IO, port 5000 — REST API + GameEngine + frontend
+- **propforge:** Flask + Socket.IO, port 5000 — REST API + GameEngine + frontend
 - **GameForge frontend:** React 18 + Vite + @xyflow/react v12 + socket.io-client
 - **Floor 2 terminal:** Flask, port 8080 — anropar hardware_service för relästyrning
 - **Data:** JSON-filer i `/home/pi/management/data/`
@@ -106,7 +102,7 @@ Läs detta innan du söker igenom koden — det sparar tid.
 | Projektsparning | `Z:\management\data\projects\<uuid>.json` |
 | Djup arkitekturdokumentation | `Z:\management\GAMEFORGE.md` |
 | GPIO-pinntilldelning (alla 40 pinnar, status, komponent) | `Z:\PIN_MAP.md` |
-| Strategisk vision, roadmap, kommersiella vinklar | `memory/strategy_gameforge.md` (i Claude memory-mappen) |
+| Strategisk vision, roadmap, kommersiella vinklar | `memory/strategy_propforge.md` (i Claude memory-mappen) |
 
 ### Hårdvaruevent-flöde
 
@@ -180,23 +176,23 @@ Både `component_library.json` och `get_components()` på Pi använder samma sch
 ### Ny output på ett hårdvarukort
 1. `/home/pi/modules/<modul>.py` → `get_components()` outputs + `_on_<event>()` i Device-klassen
 2. `Z:\management\engine.py` → hantera nytt handle i `_exec_<type>()`
-3. Starta om: `sudo systemctl restart hardware-service gameforge`
+3. Starta om: `sudo systemctl restart hardware-service propforge`
 4. Frontend visar den nya outputen automatiskt — bygg bara om canvas-kortet behöver ändras
 
 ### Ny input på ett logic-kort
 1. `Z:\management\component_library.json` → lägg till i komponentens `inputs`-array
 2. `Z:\management\engine.py` → lägg till `if handle == 'new_handle':` i `_exec_<type>()`
-3. Bygg React + starta om: `npm run build && sudo systemctl restart gameforge`
+3. Bygg React + starta om: `npm run build && sudo systemctl restart propforge`
 
 ### Ny komponenttyp (logic)
 1. `component_library.json` → ny post med type, inputs, outputs, params
 2. `engine.py` → skriv `_exec_<type>()` + registrera i `_EXECUTORS`-dict
-3. Bygg React + starta om gameforge
+3. Bygg React + starta om propforge
 
 ### Ny komponenttyp (hårdvara)
 1. Skapa `/home/pi/modules/<modul>.py` med `MANIFEST`, `get_components()`, `Device`
 2. Skriv `_exec_<type>()` i `engine.py` + registrera i `_EXECUTORS`
-3. Starta om hardware-service + gameforge (hårdvarumodulen laddas automatiskt)
+3. Starta om hardware-service + propforge (hårdvarumodulen laddas automatiskt)
 4. Bygg React om live-status på kortet behövs (`ComponentNode.jsx`)
 
 ---

@@ -15,9 +15,26 @@ Configurable:
   UART_BAUD — baud rate (DFPlayer default: 9600)
 """
 
+import glob
 import time
 
-UART_PORT = '/dev/ttyUSB1'   # USB-serial adapter; relay board claims ttyUSB0 via pylibftdi
+
+def _find_port():
+    """Locate the USB-serial adapter the DFPlayer is wired to.
+
+    Prefer a stable /dev/serial/by-id symlink (survives ttyUSB renumbering);
+    fall back to the first /dev/ttyUSB*. The Denkovi relay board uses pylibftdi
+    and claims its FTDI chip directly, so it does not appear as a ttyUSB here.
+    Set UART_PORT to an explicit path to override.
+    """
+    by_id = sorted(glob.glob('/dev/serial/by-id/*'))
+    if by_id:
+        return by_id[0]
+    tty = sorted(glob.glob('/dev/ttyUSB*'))
+    return tty[0] if tty else '/dev/ttyUSB0'
+
+
+UART_PORT = _find_port()   # auto-detected (was hardcoded /dev/ttyUSB1)
 UART_BAUD = 9600
 
 MANIFEST = {

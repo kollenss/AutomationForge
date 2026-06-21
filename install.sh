@@ -44,7 +44,7 @@ fi
 # 3. Python packages
 # ---------------------------------------------------------------------------
 echo "==> Installing Python packages..."
-sudo pip3 install flask flask-socketio pylibftdi mfrc522 RPi.GPIO pigpio --break-system-packages
+sudo pip3 install flask flask-socketio pylibftdi mfrc522 RPi.GPIO pigpio pyserial --break-system-packages
 
 # ---------------------------------------------------------------------------
 # 4. Build frontend

@@ -35,7 +35,7 @@ if ! command -v pigpiod &> /dev/null; then
     make -j4
     sudo make install
     cd "$HOME_DIR"
-    rm -rf pigpio-master master.zip
+    sudo rm -rf pigpio-master master.zip
 else
     echo "==> pigpio already installed, skipping build."
 fi

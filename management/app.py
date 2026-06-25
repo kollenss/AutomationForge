@@ -22,6 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'projects')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 LIBRARY_PATH = os.path.join(BASE_DIR, 'component_library.json')
+SETTINGS_PATH = os.path.join(BASE_DIR, 'data', 'settings.json')  # per-instance config (gitignored)
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -99,6 +100,14 @@ def _project_path(project_id):
     return os.path.join(DATA_DIR, f'{project_id}.json')
 
 
+def _read_settings():
+    return _read_json(SETTINGS_PATH, {})
+
+
+def _write_settings(settings):
+    _write_json(SETTINGS_PATH, settings)
+
+
 def _now():
     return datetime.utcnow().isoformat() + 'Z'
 
@@ -109,20 +118,49 @@ def _reload_engine(project):
 
 
 def _autoload_engine():
+    """On startup, load the configured autostart project and activate its chosen
+    scene (firing on_scene_start, just like the Activate button). If no autostart
+    is configured, fall back to the most-recently-updated project with its saved
+    scene states. Configure via PUT /api/settings/autostart."""
     global _active_project_id
+
+    auto = _read_settings().get('autostart') or {}
+    pid, sid = auto.get('project_id'), auto.get('scene_id')
+
+    project = None
+    if pid:
+        p = _read_json(_project_path(pid))
+        if p and 'id' in p and 'name' in p:
+            project = p
+            if sid and not any(s.get('id') == sid for s in project.get('scenes', [])):
+                sid = None                       # configured scene was deleted
+
+    if project is not None:
+        # Exactly the chosen scene starts active; persist so the UI matches.
+        for scene in project.get('scenes', []):
+            scene['active'] = (scene.get('id') == sid)
+        _write_json(_project_path(project['id']), project)
+        _active_project_id = project['id']
+        _reload_engine(project)
+        if sid:
+            engine.activate_scene(sid)           # fire on_scene_start like the Activate button
+            print(f'[autostart] "{project.get("name")}" → scene {sid} activated')
+        return
+
+    # Fallback: no autostart configured — load latest project, keep saved states.
     try:
         files = os.listdir(DATA_DIR)
     except Exception:
-        return
-    projects = [_read_json(os.path.join(DATA_DIR, f)) for f in files if f.endswith('.json')]
+        files = []
+    projects = [_read_json(os.path.join(DATA_DIR, f)) for f in files
+                if f.endswith('.json') and not f.endswith('_unlock.json')]
     projects = [p for p in projects if p and 'id' in p and 'name' in p]
     if not projects:
         return
     latest = max(projects, key=lambda p: p.get('updated_at', ''))
-    _active_project_id = latest['id']
-    # Ensure all scenes are active so hardware events fire on startup
     for scene in latest.get('scenes', []):
         scene.setdefault('active', True)
+    _active_project_id = latest['id']
     _reload_engine(latest)
 
 
@@ -341,6 +379,36 @@ def api_import_projects():
         'skipped': skipped,
         'duplicated': duplicated,
     })
+
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+@app.route('/api/settings/autostart')
+def api_get_autostart():
+    """Which project+scene activates automatically when GameForge starts."""
+    auto = _read_settings().get('autostart') or {}
+    return jsonify({'project_id': auto.get('project_id'), 'scene_id': auto.get('scene_id')})
+
+
+@app.route('/api/settings/autostart', methods=['PUT'])
+def api_set_autostart():
+    """Set (or clear) the startup project+scene. Send {project_id: null} to clear."""
+    body = request.json or {}
+    pid = body.get('project_id')
+    sid = body.get('scene_id')
+    settings = _read_settings()
+    if not pid:
+        settings['autostart'] = None
+    else:
+        if not os.path.exists(_project_path(pid)):
+            return jsonify({'error': 'Project not found'}), 404
+        project = _read_json(_project_path(pid))
+        if sid and not any(s.get('id') == sid for s in project.get('scenes', [])):
+            return jsonify({'error': 'Scene not found in project'}), 404
+        settings['autostart'] = {'project_id': pid, 'scene_id': sid}
+    _write_settings(settings)
+    auto = settings.get('autostart') or {}
+    return jsonify({'project_id': auto.get('project_id'), 'scene_id': auto.get('scene_id')})
 
 
 # ── Scenes ─────────────────────────────────────────────────────────────────

@@ -27,9 +27,11 @@ export default function ProjectsPage() {
   const [sceneStates, setSceneStates]   = useState({}) // scene_id → bool
   const [editingScene, setEditingScene] = useState(null) // scene_id being renamed
   const [editingName,  setEditingName]  = useState('')
+  const [autostart, setAutostart]       = useState({ project_id: null, scene_id: null })
 
   useEffect(() => {
     api.listProjects().then(setProjects).catch(console.error).finally(() => setLoading(false))
+    api.getAutostart().then(setAutostart).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -165,6 +167,20 @@ export default function ProjectsPage() {
     } catch (err) { setError(err.message) }
   }
 
+  function isStartupScene(sceneId) {
+    return autostart.project_id === activeProject?.id && autostart.scene_id === sceneId
+  }
+
+  async function toggleStartup(sceneId, e) {
+    e.stopPropagation()
+    const next = isStartupScene(sceneId)
+      ? { project_id: null, scene_id: null }                 // clear
+      : { project_id: activeProject.id, scene_id: sceneId }  // set (replaces any other)
+    try {
+      setAutostart(await api.setAutostart(next))
+    } catch (err) { setError(err.message) }
+  }
+
   return (
     <div className="pp-layout">
       <header className="pp-header">
@@ -276,6 +292,14 @@ export default function ProjectsPage() {
                         >
                           <div className="pp-scene-header">
                             <span className="pp-scene-icon">◈</span>
+                            <button
+                              className={`pp-startup-btn ${isStartupScene(s.id) ? 'pp-startup-on' : ''}`}
+                              title={isStartupScene(s.id)
+                                ? 'Starts on launch — click to unset'
+                                : 'Start on launch (auto-activate when GameForge boots)'}
+                              onMouseDown={e => e.stopPropagation()}
+                              onClick={e => toggleStartup(s.id, e)}
+                            >🚀</button>
                             <span className={`pp-scene-dot ${active ? 'pp-dot-on' : 'pp-dot-off'}`} title={active ? 'Active' : 'Inactive'} />
                           </div>
                           {editingScene === s.id ? (

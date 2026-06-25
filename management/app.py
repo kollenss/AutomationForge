@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import subprocess
@@ -237,6 +238,109 @@ def api_delete_project(project_id):
     if os.path.exists(path):
         os.remove(path)
     return jsonify({'ok': True})
+
+
+def _strip_runtime(project):
+    """Return a copy of a project with transient runtime state removed, so
+    exports/imports carry only the design, not the live scene state."""
+    p = copy.deepcopy(project)
+    for scene in p.get('scenes', []):
+        scene.pop('active', None)
+    return p
+
+
+def _all_projects():
+    """Read every saved project definition (skips the *_unlock.json runtime files)."""
+    out = []
+    try:
+        files = os.listdir(DATA_DIR)
+    except Exception:
+        files = []
+    for fname in files:
+        if not fname.endswith('.json') or fname.endswith('_unlock.json'):
+            continue
+        p = _read_json(os.path.join(DATA_DIR, fname))
+        if p and 'id' in p and 'name' in p:
+            out.append(p)
+    return out
+
+
+@app.route('/api/projects/export')
+def api_export_projects():
+    """Download all projects as a single JSON bundle (runtime state stripped).
+
+    Lets you move work between machines or seed a fresh Pi: export here, then
+    Import on the other instance.
+    """
+    bundle = {
+        'version': 1,
+        'exported_at': _now(),
+        'projects': [_strip_runtime(p) for p in _all_projects()],
+    }
+    payload = json.dumps(bundle, indent=2, ensure_ascii=False)
+    filename = f'gameforge-projects-{_now()[:10]}.json'
+    return app.response_class(
+        payload,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
+@app.route('/api/projects/import', methods=['POST'])
+def api_import_projects():
+    """Restore projects from an exported bundle (or a single project object).
+
+    Body: { "projects": [...], "mode": "skip" | "overwrite" | "duplicate" }
+      skip       — keep existing projects with the same id, add only new ones (default)
+      overwrite  — replace existing projects with the imported version
+      duplicate  — import everything under fresh ids (never touches existing work)
+    """
+    body = request.json or {}
+    incoming = body.get('projects')
+    if incoming is None and isinstance(body.get('id'), str):
+        incoming = [body]                      # accept a single bare project too
+    if not isinstance(incoming, list):
+        return jsonify({'error': 'Invalid bundle — expected {"projects": [...]}'}), 400
+
+    mode = (body.get('mode') or 'skip').lower()
+    if mode not in ('skip', 'overwrite', 'duplicate'):
+        return jsonify({'error': f'Unknown mode "{mode}"'}), 400
+
+    existing = {p['id'] for p in _all_projects()}
+    added = overwritten = skipped = duplicated = 0
+
+    for proj in incoming:
+        if not (isinstance(proj, dict) and 'id' in proj and 'name' in proj):
+            continue
+        proj = _strip_runtime(proj)
+        pid = proj['id']
+        conflict = pid in existing
+
+        if conflict and mode == 'skip':
+            skipped += 1
+            continue
+        if conflict and mode == 'duplicate':
+            pid = proj['id'] = str(uuid.uuid4())
+            proj['name'] = f'{proj["name"]} (imported)'
+            proj['created_at'] = _now()
+            duplicated += 1
+        elif conflict:                         # mode == 'overwrite'
+            overwritten += 1
+        else:
+            added += 1
+
+        proj.setdefault('created_at', _now())
+        proj['updated_at'] = _now()
+        _write_json(_project_path(pid), proj)
+        existing.add(pid)
+
+    return jsonify({
+        'total': len(incoming),
+        'added': added,
+        'overwritten': overwritten,
+        'skipped': skipped,
+        'duplicated': duplicated,
+    })
 
 
 # ── Scenes ─────────────────────────────────────────────────────────────────

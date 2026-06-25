@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { socket } from '../socket'
@@ -22,6 +22,8 @@ export default function ProjectsPage() {
   const [newSceneName, setNewSceneName]       = useState('')
   const [showNewScene, setShowNewScene]       = useState(false)
   const [error, setError]               = useState('')
+  const [notice, setNotice]             = useState('')
+  const importInputRef                  = useRef(null)
   const [sceneStates, setSceneStates]   = useState({}) // scene_id → bool
   const [editingScene, setEditingScene] = useState(null) // scene_id being renamed
   const [editingName,  setEditingName]  = useState('')
@@ -49,6 +51,53 @@ export default function ProjectsPage() {
     socket.on('scene_state', handler)
     return () => socket.off('scene_state', handler)
   }, [])
+
+  function exportProjects() {
+    if (projects.length === 0) { setError('No projects to export'); return }
+    // Content-Disposition makes this a download, not a navigation.
+    window.location.href = api.exportProjectsUrl()
+  }
+
+  async function onImportFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''                       // allow re-importing the same file
+    if (!file) return
+    setError(''); setNotice('')
+    let bundle
+    try {
+      bundle = JSON.parse(await file.text())
+    } catch {
+      setError('Could not read file — not valid JSON')
+      return
+    }
+    const incoming = Array.isArray(bundle.projects)
+      ? bundle.projects
+      : (bundle && bundle.id ? [bundle] : null)
+    if (!incoming || incoming.length === 0) {
+      setError('Not a GameForge project export')
+      return
+    }
+    const existingIds = new Set(projects.map(p => p.id))
+    const conflicts = incoming.filter(p => p && existingIds.has(p.id))
+    let mode = 'skip'
+    if (conflicts.length > 0) {
+      mode = confirm(
+        `${conflicts.length} of ${incoming.length} project(s) already exist here.\n\n` +
+        'OK = overwrite them with the imported version\n' +
+        'Cancel = keep existing, import only new projects'
+      ) ? 'overwrite' : 'skip'
+    }
+    try {
+      const r = await api.importProjects({ projects: incoming, mode })
+      const list = await api.listProjects()
+      setProjects(list)
+      const parts = []
+      if (r.added) parts.push(`${r.added} added`)
+      if (r.overwritten) parts.push(`${r.overwritten} overwritten`)
+      if (r.skipped) parts.push(`${r.skipped} skipped`)
+      setNotice(`Imported: ${parts.join(', ') || 'nothing new'}`)
+    } catch (err) { setError(err.message) }
+  }
 
   async function createProject(e) {
     e.preventDefault()
@@ -124,6 +173,7 @@ export default function ProjectsPage() {
           <span className="pp-logo-name">GameForge</span>
         </div>
         {error && <span className="pp-error">{error}</span>}
+        {notice && <span className="pp-notice">{notice}</span>}
       </header>
 
       <div className="pp-body">
@@ -131,7 +181,15 @@ export default function ProjectsPage() {
         <aside className="pp-projects-col">
           <div className="pp-col-head">
             <h2>Projects</h2>
-            <button className="primary" onClick={() => setShowNewProject(v => !v)}>+ New</button>
+            <div className="pp-col-actions">
+              <button title="Download all projects as a backup file" onClick={exportProjects}>Export</button>
+              <button title="Restore projects from a backup file" onClick={() => importInputRef.current?.click()}>Import</button>
+              <button className="primary" onClick={() => setShowNewProject(v => !v)}>+ New</button>
+            </div>
+            <input
+              ref={importInputRef} type="file" accept="application/json,.json"
+              style={{ display: 'none' }} onChange={onImportFile}
+            />
           </div>
 
           {showNewProject && (

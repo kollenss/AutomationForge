@@ -10,6 +10,13 @@
 .pp-logo-mark { font-size: 20px; color: var(--accent); }
 .pp-logo-name { font-size: 16px; font-weight: 600; letter-spacing: .02em; }
 .pp-error { color: var(--danger); font-size: 12px; }
+.pp-notice { color: var(--accent); font-size: 12px; }
+
+.pp-col-actions {
+  display: flex; gap: 6px; align-items: center;
+  flex-wrap: wrap; justify-content: flex-end;
+}
+.pp-col-actions button { font-size: 12px; padding: 4px 8px; }
 
 .pp-body { display: flex; flex: 1; overflow: hidden; }
 

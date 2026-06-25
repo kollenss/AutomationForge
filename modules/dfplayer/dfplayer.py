@@ -1,17 +1,27 @@
 """DFPlayer Mini MP3 module for GameForge hardware_service.
 
 Hardware connection (Raspberry Pi):
-  DFPlayer TX  → Pi GPIO 15 / RX (pin 10)
-  DFPlayer RX  → Pi GPIO 14 / TX (pin 8)  [via 1kΩ resistor recommended]
-  DFPlayer VCC → 5V (pin 2 or 4)
-  DFPlayer GND → GND (pin 6)
-  DFPlayer SPK → speaker (8Ω)
+  The DFPlayer is driven over UART through an FT232R USB-serial adapter, which
+  shows up as /dev/ttyUSB*. We address it via its stable /dev/serial/by-id
+  symlink so it survives ttyUSB renumbering.
+    FT232 TX  → DFPlayer RX   (commands; via 1kΩ resistor recommended)
+    FT232 RX  → DFPlayer TX   (status/ACK — optional, fine if left unwired)
+    DFPlayer VCC → 5V,  GND → common GND with the adapter
+    DFPlayer SPK → speaker (8Ω)
+  Note: keep VCC↔GND decoupling modest (a single ~470µF). Stacking several
+  large electrolytics causes a big inrush surge at power-up that browns out the
+  Pi → USB re-enumerates → playback dies.
 
-SD card file layout:  /0001.mp3, /0002.mp3 … or /MP3/0001.mp3 etc.
-Track numbers map directly to filenames.
+SD card file layout:  /MP3/0001.mp3, /MP3/0002.mp3 …  (4-digit names inside a
+folder named exactly "MP3"). Track N plays /MP3/NNNN.mp3 *by filename* via the
+0x12 command — robust against SD copy order, unlike the old 0x03 "play index".
+
+Self-healing: the serial handle is reopened automatically on write failure
+(e.g. after a USB re-enumeration), so no hardware-service restart is needed when
+the adapter is replugged or the box is rewired.
 
 Configurable:
-  UART_PORT — serial device path
+  UART_PORT — explicit serial device path override (default: auto-detect)
   UART_BAUD — baud rate (DFPlayer default: 9600)
 """
 
@@ -34,13 +44,18 @@ def _find_port():
     return tty[0] if tty else '/dev/ttyUSB0'
 
 
-UART_PORT = _find_port()   # auto-detected (was hardcoded /dev/ttyUSB1)
+UART_PORT = None           # set to an explicit path to override auto-detection
 UART_BAUD = 9600
 
 MANIFEST = {
     'type':  'dfplayer',
     'label': 'DFPlayer Mini',
 }
+
+
+def _resolve_port():
+    """Port to (re)open: explicit override if set, otherwise re-detect live."""
+    return UART_PORT or _find_port()
 
 
 def get_components():
@@ -74,7 +89,7 @@ def _checksum(data):
 
 class Device:
     # DFPlayer serial command bytes
-    _CMD_PLAY_TRACK = 0x03
+    _CMD_PLAY_MP3   = 0x12   # play /MP3/NNNN.mp3 by filename (robust; not copy order)
     _CMD_SET_VOLUME = 0x06
     _CMD_STOP       = 0x16
     _CMD_PAUSE      = 0x0E
@@ -84,39 +99,97 @@ class Device:
     def __init__(self):
         self._volume = 20
         self._playing = None
+        self._ser = None      # open serial handle, or None when disconnected
+        self._stub = False    # True only when pyserial itself is unavailable
         try:
-            import serial
-            self._ser = serial.Serial(UART_PORT, UART_BAUD, timeout=1)
-            time.sleep(0.5)
-            self._stub = False
-            self._send(self._CMD_RESET)
-            time.sleep(1.0)          # DFPlayer needs ~1 s after reset
-            self._send(self._CMD_SET_VOLUME, 0, self._volume)
-            print(f'[dfplayer] connected on {UART_PORT}')
+            import serial  # noqa: F401
         except Exception as e:
             self._stub = True
-            print(f'[dfplayer] stub mode — {e}')
+            print(f'[dfplayer] stub mode — pyserial not available ({e})')
+            return
+        # Try once now; if the device is absent it stays disconnected and the
+        # first play command will reopen it. No hard failure at boot.
+        self._open()
 
     # ── Serial protocol ────────────────────────────────────────────────────
 
-    def _send(self, cmd, p1=0, p2=0):
-        if self._stub:
-            print(f'[dfplayer] CMD 0x{cmd:02X} p1={p1} p2={p2}')
-            return
+    def _packet(self, cmd, p1=0, p2=0):
         cs = _checksum([0xFF, 0x06, cmd, 0x00, p1, p2])
-        packet = bytes([
+        return bytes([
             0x7E, 0xFF, 0x06, cmd, 0x00,
             p1, p2,
             (cs >> 8) & 0xFF, cs & 0xFF,
             0xEF,
         ])
-        self._ser.write(packet)
-        time.sleep(0.05)
+
+    def _open(self):
+        """(Re)open the serial port via the live by-id path. Returns True on success."""
+        if self._stub:
+            return False
+        import serial
+        if self._ser is not None:
+            try:
+                self._ser.close()
+            except Exception:
+                pass
+            self._ser = None
+        port = _resolve_port()
+        try:
+            ser = serial.Serial(port, UART_BAUD, timeout=1)
+            time.sleep(0.5)
+            ser.write(self._packet(self._CMD_RESET))
+            time.sleep(1.0)                                   # DFPlayer needs ~1 s after reset
+            ser.write(self._packet(self._CMD_SET_VOLUME, 0, self._volume))
+            time.sleep(0.05)
+            self._ser = ser
+            print(f'[dfplayer] connected on {port}')
+            return True
+        except Exception as e:
+            self._ser = None
+            print(f'[dfplayer] open failed on {port} — {e}')
+            return False
+
+    def _write(self, packet):
+        """Write raw bytes; drop the handle on error so the next call reopens."""
+        if self._ser is None:
+            return False
+        try:
+            self._ser.write(packet)
+            time.sleep(0.05)
+            return True
+        except Exception as e:
+            print(f'[dfplayer] serial write error ({e}) — will reconnect')
+            try:
+                self._ser.close()
+            except Exception:
+                pass
+            self._ser = None
+            return False
+
+    def _send(self, cmd, p1=0, p2=0):
+        if self._stub:
+            print(f'[dfplayer] CMD 0x{cmd:02X} p1={p1} p2={p2}')
+            return
+        packet = self._packet(cmd, p1, p2)
+        # Ensure a handle exists (reopen if disconnected), then write with one
+        # reconnect-and-retry on failure (covers USB re-enumeration mid-session).
+        if self._ser is None:
+            self._open()
+        if self._write(packet):
+            return
+        if self._open() and self._write(packet):
+            return
+        print(f'[dfplayer] CMD 0x{cmd:02X} dropped — device unavailable')
 
     # ── Device interface ───────────────────────────────────────────────────
 
     def get_state(self):
-        return {'playing': self._playing, 'volume': self._volume, 'stub': self._stub}
+        return {
+            'playing':   self._playing,
+            'volume':    self._volume,
+            'stub':      self._stub,
+            'connected': self._ser is not None,
+        }
 
     def execute(self, cmd, **kwargs):
         if cmd == 'play':
@@ -125,7 +198,7 @@ class Device:
             if volume != self._volume:
                 self._send(self._CMD_SET_VOLUME, 0, volume)
                 self._volume = volume
-            self._send(self._CMD_PLAY_TRACK, 0, track)
+            self._send(self._CMD_PLAY_MP3, (track >> 8) & 0xFF, track & 0xFF)
             self._playing = track
             return {'playing': track, 'volume': volume}
 
@@ -151,10 +224,11 @@ class Device:
         raise ValueError(f'Unknown command: {cmd}')
 
     def close(self):
-        if not self._stub:
+        if self._ser is not None:
             try:
-                self._send(self._CMD_STOP)
+                self._ser.write(self._packet(self._CMD_STOP))
                 time.sleep(0.1)
                 self._ser.close()
             except Exception:
                 pass
+            self._ser = None

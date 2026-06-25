@@ -16,7 +16,7 @@ Allt ligger nu på **ninja** efter migrationen från den deprecade diamond:
 
 | Roll | Host | IP | Detalj |
 |---|---|---|---|
-| **Redigering + runtime + felsökning** | `ninja.local` | `192.168.68.63` | `Z:\` är Samba-mappad hit (`\\192.168.68.63\forge` → `/home/pi/AutomationForge`), så `Z:\management\` = `/home/pi/AutomationForge/management`. **SSH MCP pekar hit.** Tjänsterna kör här. OS: Debian 13 (trixie). |
+| **Redigering + runtime + felsökning** | `ninja.local` | DHCP (var `.63`, nu `.56`) | `Z:\` är Samba-mappad hit (`\\ninja.local\forge` → `/home/pi/AutomationForge`), så `Z:\management\` = `/home/pi/AutomationForge/management`. **SSH MCP pekar hit.** Tjänsterna kör här. OS: Debian 13 (trixie). **Adressera alltid via `ninja.local` (mDNS), inte hårdkodad IP — IP:n är DHCP och har flyttat.** |
 | **diamond.local** | — | — | **Deprecated** (WiFi-problem). Nås bara via SSH-hopp genom ninja. Används ej längre för redigering eller runtime. |
 
 > Migration klar 2026-06-21: redigering och runtime är nu samma maskin — `Z:\management\app.py` är exakt den fil `propforge` kör.
@@ -80,7 +80,7 @@ Kod, kommentarer och konversation med användaren är på svenska.
 - **propforge:** Flask + Socket.IO, port 5000 — REST API + GameEngine + frontend
 - **GameForge frontend:** React 18 + Vite + @xyflow/react v12 + socket.io-client
 - **Floor 2 terminal:** Flask, port 8080 — anropar hardware_service för relästyrning
-- **Data:** JSON-filer i `/home/pi/management/data/`
+- **Data:** JSON-filer i `/home/pi/AutomationForge/management/data/` (projekt + `settings.json`; gitignorerad)
 - **Git repo:** https://github.com/kollenss/AutomationForge
 
 ---

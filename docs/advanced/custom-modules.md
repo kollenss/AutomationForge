@@ -175,13 +175,13 @@ Pure input hardware nodes typically do not need executors — their events trave
 
 ```bash
 # Copy file to Pi
-scp door_sensor.py pi@diamond.local:/home/pi/modules/
+scp door_sensor.py pi@ninja.local:/home/pi/AutomationForge/modules/
 
 # Restart hardware-service to load the new module
 sudo systemctl restart hardware-service
 
 # Verify it loaded
-curl http://diamond.local:5101/hardware
+curl http://ninja.local:5101/hardware
 # Look for {"type": "door_sensor", "connected": true, ...}
 
 # Restart propforge so the frontend gets the updated component list

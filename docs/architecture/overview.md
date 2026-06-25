@@ -68,8 +68,8 @@ This keeps all hardware ownership in one place and avoids GPIO conflicts.
 
 ## Project storage
 
-Projects are saved as JSON files in `/home/pi/management/data/projects/<uuid>.json`. Each file contains an array of scenes; each scene contains `nodes` (components with params) and `edges` (wires). The engine loads the active project on startup and reloads it whenever the designer saves from the browser.
+Projects are saved as JSON files in `/home/pi/AutomationForge/management/data/projects/<uuid>.json`. Each file contains an array of scenes; each scene contains `nodes` (components with params) and `edges` (wires). On startup the engine loads the configured autostart project + scene (`data/settings.json`), falling back to the most recently updated project; it reloads whenever the designer saves from the browser.
 
 ## Frontend
 
-The React frontend is built with Vite and `@xyflow/react` (React Flow v12). The built output is placed in `/home/pi/management/static/` and served directly by the Flask process on port 5000. No separate Node.js process is needed at runtime.
+The React frontend is built with Vite and `@xyflow/react` (React Flow v12). The built output is placed in `/home/pi/AutomationForge/management/static/` and served directly by the Flask process on port 5000. No separate Node.js process is needed at runtime.

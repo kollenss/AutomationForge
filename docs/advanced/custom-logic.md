@@ -97,7 +97,7 @@ _EXECUTORS = {
 
 ```bash
 # Rebuild the React frontend so the new component appears in the library
-cd /home/pi/management/frontend && npm run build
+cd /home/pi/AutomationForge/management/frontend && npm run build
 
 # Restart the engine to load the updated executor
 sudo systemctl restart propforge

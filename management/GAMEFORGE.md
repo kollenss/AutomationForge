@@ -138,7 +138,18 @@ DELETE /api/projects/:id
 POST   /api/projects/:id/scenes
 PUT    /api/projects/:id/scenes/:sid
 DELETE /api/projects/:id/scenes/:sid
+GET    /api/projects/export          → ladda ner alla projekt som JSON-bundle (runtime-state strippat)
+POST   /api/projects/import          → återställ/seeda projekt { projects, mode: skip|overwrite|duplicate }
+GET    /api/settings/autostart       → vilket projekt+scen som auto-aktiveras vid boot
+PUT    /api/settings/autostart       → sätt/rensa autostart ({ project_id: null } rensar)
 ```
+
+### Projektlagring, backup & autostart
+
+- **Lagring:** ett projekt = en JSON-fil i `management/data/projects/<uuid>.json`. `<uuid>_unlock.json` = runtime-state. `management/data/` är **gitignorerad** → projekt följer inte med i git; en ny Pi (fresh bootstrap) startar tom.
+- **Källa till sanning = den centrala Pi:n.** Alla klienter ansluter till `http://ninja.local:5000` och delar samma data. Frontenden cachar inga projekt (bara `gf_layout`/`gf_debug` i localStorage).
+- **Backup/migrering = Export/Import** (knappar i ProjectsPage). Export laddar ner alla projekt som en JSON-bundle med scenens `active`-flagga strippad; Import återställer (skip/overwrite/duplicate). Använd detta för att seeda en ny Pi eller flytta arbete — t.ex. innan lånade ninja lämnas tillbaka: Export på ninja → Import på egen Pi.
+- **Autostart:** `data/settings.json` (per-instans, gitignorerad) `{ "autostart": { "project_id", "scene_id" } }`. Vid boot laddar `_autoload_engine()` det projektet och aktiverar exakt den scenen (kör `on_scene_start`, som Activate-knappen). Ej satt → fallback: senast ändrade projekt med sparade scen-states. Ställs in via 🚀 "Start on launch"-knappen per scenkort (ett projekt + en scen).
 
 **Hårdvara (proxy till hardware_service):**
 ```
@@ -283,16 +294,17 @@ Lägg till ny live-sektion:
 
 ```bash
 # Bygga frontend (på Pi via SSH — kör INTE npm på Samba-share, ger EPERM):
-cd /home/pi/management/frontend && npm run build
+cd /home/pi/AutomationForge/management/frontend && npm run build
 # Output hamnar i ../static/ — efter build:
-sudo systemctl restart gameforge
+sudo systemctl restart propforge
 
 # Tjänster hanteras av systemd (autostart vid boot):
 sudo systemctl start|stop|restart pigpiod
 sudo systemctl start|stop|restart hardware-service
-sudo systemctl start|stop|restart gameforge
+sudo systemctl start|stop|restart propforge
 
-# Startordning: pigpiod → hardware-service → gameforge (hanteras av Requires=)
+# Startordning: pigpiod → hardware-service → propforge (hanteras av Requires=)
+# OBS: huvudtjänsten heter propforge (inte gameforge).
 ```
 
 ---
@@ -331,7 +343,7 @@ POST /engine/activate_scene   Aktivera scen: { scene_id, project_id }
 POST /engine/deactivate_scene Deaktivera scen: { scene_id, project_id }
 ```
 
-Engine laddas automatiskt med senast uppdaterade projekt vid start. Om en scenes data sparas och scenen tillhör aktivt projekt laddas grafen om automatiskt.
+Engine laddas vid start enligt autostart-konfigurationen (`data/settings.json`) — valt projekt + scen aktiveras automatiskt; saknas konfig laddas senast uppdaterade projekt. Se "Projektlagring, backup & autostart". Om en scenes data sparas och scenen tillhör aktivt projekt laddas grafen om automatiskt.
 
 ### Eventflöde
 

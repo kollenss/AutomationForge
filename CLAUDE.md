@@ -30,10 +30,12 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 | Role | Host | IP | Notes |
 |---|---|---|---|
-| **Editing + runtime + debugging** | `ninja.local` | `192.168.68.63` | `Z:\` is Samba-mapped here (`Z:\` = `/home/pi/AutomationForge/`). SSH MCP points here. Services (`propforge`, `hardware-service`, `pigpiod`) run here. |
+| **Editing + runtime + debugging** | `ninja.local` | DHCP — use mDNS (was `.63`, now `.56`) | `Z:\` is Samba-mapped here (`Z:\` = `/home/pi/AutomationForge/`). SSH MCP points here. Services (`propforge`, `hardware-service`, `pigpiod`) run here. |
 | **diamond.local** | — | — | **Deprecated** (WiFi broken). Reachable only via an SSH jump through ninja. No longer used for editing or runtime. |
 
-> Migration done 2026-06-21: Samba share `\\192.168.68.63\forge` → `/home/pi/AutomationForge`, `Z:` remapped there. Editing and runtime are now the same machine — no more git round-trip between two Pis.
+> Migration done 2026-06-21: Samba share `\\ninja.local\forge` → `/home/pi/AutomationForge`, `Z:` remapped there. Editing and runtime are now the same machine — no more git round-trip between two Pis.
+
+> **Always address ninja via `ninja.local` (mDNS), not a hardcoded IP** — its IP is DHCP and has already moved (`.63` → `.56`). Both Samba (`\\ninja.local\forge`) and the OpsRouter SSH plugin (`C:\Dev\OpsRouter\plugins\ssh\config.yaml`, `hostname: ninja.local`) point at the name. The MCP server caches its config at startup, so restart the client after changing it.
 
 ### Workflow
 

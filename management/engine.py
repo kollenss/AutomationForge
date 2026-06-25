@@ -969,11 +969,15 @@ class GameEngine:
     @staticmethod
     def _params_match(params, value):
         """Return True if value is not a dict, or if all dict keys that exist
-        as node params have matching values."""
+        as node params have matching values.
+
+        Compared as strings: UI dropdowns/number fields store params as strings
+        (e.g. reader_id "1") while hardware events send native types (int 1), so
+        a strict != would wrongly reject the match."""
         if not isinstance(value, dict):
             return True
         for k, v in value.items():
-            if k in params and params[k] != v:
+            if k in params and str(params[k]) != str(v):
                 return False
         return True
 

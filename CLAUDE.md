@@ -21,6 +21,7 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 | `GAMEPLAY.md` | All three acts, puzzle mechanics, game flow |
 | `COMPONENTS.md` | Full component inventory with status |
 | `diamond-heist-designdokument.md` | Image prompts (all 12), contract text, planning book text |
+| `PIN_MAP.md` | **Single source of truth for all GPIO/pin assignments.** This file does not duplicate pin numbers — always check PIN_MAP.md. |
 
 ---
 
@@ -203,10 +204,9 @@ FLOOR 3 – The Vault  [vault.py, pigpio]
   - play_effect(name) + play_voice(filename) API
 - ✅ Floor 2 keyboard auto-reconnect fixed (evdev thread retries on disconnect)
 - ✅ shared/encoder.py – KY-040 via pigpio, FALLING_EDGE på CLK + 3ms tidsbaserad debounce
-  - Pins: CLK=GPIO17 (Pin 11), DT=GPIO27 (Pin 13)
   - CLK faller → läs DT → riktning; debounce filtrerar CLK-studsar
   - Ersatte gray code (tappade steg vid state-skippar) — testat & stabilt
-- ✅ shared/segment_display.py – MAX7219 8-digit 7-segment via SPI0 CE1 (GPIO7, Pin 26)
+- ✅ shared/segment_display.py – MAX7219 8-digit 7-segment via SPI0 CE1
   - show_pair(val, pair), blank_pair(pair), show_text(str), blink_text(str), restore_bcd(), clear()
   - BCD-mode for digits, raw-segment mode for text (OPEN, TrYAGAIn etc.)
 - ✅ floor3_vault/test_combo.py – kombination-testscript (encoder + display + audio), TESTAT & STABILT
@@ -247,10 +247,12 @@ KY-040 genererade burst av 2–3 snabba hack vid detentposition.
 
 Kombinationslåsmekaniken är klar och testad (23/33/26/74 — alla korrekta lås). Nästa fas: koppla hårdvara och kör vault.py.
 
-1. **Koppla RC522 RFID** (SPI CE0, GPIO 8, Pin 24) — SPECTRE-kort-detektion
+> Alla pinnar: se `PIN_MAP.md`.
+
+1. **Koppla RC522 RFID** — SPECTRE-kort-detektion
    - Om shared/test_rfid.py saknas: skriv det
-2. **Koppla servos** (GPIO 5/6/13/19, Pin 29/31/33/35) — öppnar plexi-lock
-3. **Koppla NeoPixel-ring** (GPIO 18, Pin 12) — belyser diamanten
+2. **Koppla servos** — öppnar plexi-lock
+3. **Koppla NeoPixel-ring (WS2812B)** — belyser diamanten
 4. **Kör vault.py end-to-end** med all hårdvara anslutet
 
 ---

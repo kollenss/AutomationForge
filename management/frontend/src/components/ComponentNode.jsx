@@ -168,47 +168,39 @@ function RfidSim({ readerId }) {
   )
 }
 
-function LedZoneSim({ gpioPin, firstLed, lastLed, ledCount, brightness }) {
+function LedZoneSim({ leds, brightness }) {
   const [color, setColor] = useState('red')
-  const [first, setFirst] = useState(String(firstLed))
-  const [last, setLast]   = useState(String(lastLed))
-  const PRESETS = ['red','green','blue','white','yellow','purple','cyan','off']
+  const COLORS  = ['red','green','blue','white','yellow','purple','cyan']
+  const ACTIONS = ['blink','pulse','chase','fill','rainbow','off']
 
-  function send(cmd) {
+  // Pass the colour explicitly — setColor is async, so the state isn't
+  // updated yet when a colour click applies set_color immediately.
+  function send(cmd, c = color) {
     fetch(`/api/hardware/ws2812b/${cmd}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gpio_pin: gpioPin, first_led: Number(first), last_led: Number(last), led_count: ledCount, brightness, color }),
+      body: JSON.stringify({ leds, brightness, color: c }),
     })
   }
 
-  const numStyle = { width: 32, fontSize: 10, padding: '1px 3px' }
   const stop = e => e.stopPropagation()
 
   return (
     <div className="cn-encoder-sim" style={{ flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 10, color: 'var(--muted)' }}>idx</span>
-        <input type="number" min="0" value={first} onChange={e => setFirst(e.target.value)}
-          style={numStyle} onMouseDown={stop} onClick={stop} onKeyDown={stop} />
-        <span style={{ fontSize: 10, color: 'var(--muted)' }}>–</span>
-        <input type="number" min="0" value={last} onChange={e => setLast(e.target.value)}
-          style={numStyle} onMouseDown={stop} onClick={stop} onKeyDown={stop} />
-      </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-        {PRESETS.map(p => (
+        {COLORS.map(p => (
           <button key={p} className={`cn-sim-btn${color === p ? ' cn-sim-scan' : ''}`}
             style={{ fontSize: 10, padding: '1px 5px' }}
-            onMouseDown={stop} onClick={e => { stop(e); setColor(p) }}
+            onMouseDown={stop} onClick={e => { stop(e); setColor(p); send('set_color', p) }}
           >{p}</button>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 4 }}>
-        {['set_color','blink','pulse','chase','rainbow','off'].map(cmd => (
+        {ACTIONS.map(cmd => (
           <button key={cmd} className="cn-sim-btn"
             style={{ fontSize: 10, padding: '1px 5px' }}
             onMouseDown={stop} onClick={e => { stop(e); send(cmd) }}
-          >{cmd === 'set_color' ? 'set' : cmd}</button>
+          >{cmd}</button>
         ))}
       </div>
     </div>
@@ -595,10 +587,7 @@ export default function ComponentNode({ id, data, selected }) {
       )}
       {data.componentType === 'led_zone' && (
         <LedZoneSim
-          gpioPin={data.params?.gpio_pin ?? 21}
-          firstLed={data.params?.first_led ?? 0}
-          lastLed={data.params?.last_led ?? 2}
-          ledCount={data.params?.led_count ?? 10}
+          leds={data.params?.leds ?? '1-2'}
           brightness={data.params?.brightness ?? 128}
         />
       )}

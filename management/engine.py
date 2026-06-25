@@ -579,17 +579,18 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
     Instant commands (set_color, off, pulse, rainbow) fire Done immediately.
     Finite animations (blink, chase) run in a thread and fire Done on completion.
     """
-    first      = int(params.get('first_led', 0))
-    last       = int(params.get('last_led', 2))
-    brightness = int(params.get('brightness', 128))
+    brightness    = int(params.get('brightness', 128))
     default_color = params.get('default_color', 'white')
 
     payload = {
-        'first_led':     first,
-        'last_led':      last,
+        'leds':          params.get('leds', ''),
         'brightness':    brightness,
         'default_color': default_color,
     }
+    # Back-compat: nodes saved before the 'leds' field still carry first/last.
+    if not payload['leds']:
+        payload['first_led'] = int(params.get('first_led', 0))
+        payload['last_led']  = int(params.get('last_led', 1))
 
     if handle == 'set_color':
         payload['color'] = value if isinstance(value, str) and value else default_color
@@ -603,6 +604,8 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
         propagate('done', value)
 
     elif handle == 'pulse':
+        if isinstance(value, str) and value:
+            payload['color'] = value
         _hw_post('/hardware/ws2812b/pulse', payload)
         if emit: emit('node_event', {'node_id': node_id, 'label': 'pulse', 'ok': True})
         propagate('done', value)
@@ -613,10 +616,14 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
         propagate('done', value)
 
     elif handle == 'blink':
-        try:
-            payload['count'] = int(value) if value else 3
-        except (TypeError, ValueError):
-            payload['count'] = 3
+        # A numeric value sets the blink count; a colour string blinks in that colour.
+        if isinstance(value, str) and value and not value.strip().isdigit():
+            payload['color'] = value
+        else:
+            try:
+                payload['count'] = int(value) if value else 3
+            except (TypeError, ValueError):
+                payload['count'] = 3
 
         def _run():
             try:
@@ -628,11 +635,21 @@ def _exec_led_zone(node_id, params, handle, value, emit, propagate, get_state):
         threading.Thread(target=_run, daemon=True).start()
 
     elif handle == 'chase':
+        if isinstance(value, str) and value:
+            payload['color'] = value
+        _hw_post('/hardware/ws2812b/chase', payload)
+        if emit: emit('node_event', {'node_id': node_id, 'label': 'chase', 'ok': True})
+        propagate('done', value)
+
+    elif handle == 'fill':
+        if isinstance(value, str) and value:
+            payload['color'] = value
+
         def _run():
             try:
-                _hw_post('/hardware/ws2812b/chase', payload)
+                _hw_post('/hardware/ws2812b/fill', payload)
             except Exception as e:
-                print(f'[led_zone] chase failed: {e}')
+                print(f'[led_zone] fill failed: {e}')
             propagate('done', value)
 
         threading.Thread(target=_run, daemon=True).start()

@@ -44,7 +44,23 @@ fi
 # 3. Python packages
 # ---------------------------------------------------------------------------
 echo "==> Installing Python packages..."
-sudo pip3 install flask flask-socketio pylibftdi mfrc522 RPi.GPIO pigpio pyserial --break-system-packages
+sudo pip3 install flask flask-socketio pylibftdi mfrc522 RPi.GPIO pigpio pyserial rpi_ws281x --break-system-packages
+
+# ---------------------------------------------------------------------------
+# 3b. Disable onboard audio (frees the PCM peripheral for WS2812B on GPIO21)
+# ---------------------------------------------------------------------------
+echo "==> Disabling onboard audio (PCM needed by WS2812B on GPIO21)..."
+for CONFIG_TXT in /boot/firmware/config.txt /boot/config.txt; do
+    if [ -f "$CONFIG_TXT" ]; then
+        if grep -qE '^[[:space:]]*dtparam=audio=' "$CONFIG_TXT"; then
+            sudo sed -i 's/^[[:space:]]*dtparam=audio=.*/dtparam=audio=off/' "$CONFIG_TXT"
+        else
+            echo 'dtparam=audio=off' | sudo tee -a "$CONFIG_TXT" > /dev/null
+        fi
+        echo "    Set dtparam=audio=off in $CONFIG_TXT (takes effect after reboot)"
+        break
+    fi
+done
 
 # ---------------------------------------------------------------------------
 # 4. Build frontend
@@ -87,7 +103,8 @@ ExecStart=/usr/bin/python3 $REPO_DIR/modules/hardware_service.py
 WorkingDirectory=$REPO_DIR/modules
 Restart=always
 RestartSec=3
-User=pi
+# root krävs: rpi_ws281x (WS2812B) använder DMA/PCM via /dev/mem.
+User=root
 
 [Install]
 WantedBy=multi-user.target

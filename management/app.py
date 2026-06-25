@@ -486,7 +486,7 @@ def api_hw_text_input_state():
 
 @app.route('/api/hardware/ws2812b/<cmd>', methods=['POST'])
 def api_hw_ws2812b(cmd):
-    allowed = ('set_color', 'blink', 'pulse', 'chase', 'rainbow', 'off')
+    allowed = ('set_color', 'blink', 'pulse', 'chase', 'fill', 'rainbow', 'off')
     if cmd not in allowed:
         return jsonify({'error': 'Invalid command'}), 400
     body = request.get_json(force=True) or {}

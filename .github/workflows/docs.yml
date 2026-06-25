@@ -1,12 +1,10 @@
 name: Deploy docs to GitHub Pages
 
+# Frozen 2026-06-25: the public docs site is a snapshot and no longer auto-deploys
+# on push. The source of truth is in-repo (management/GAMEFORGE.md + CLAUDE.md).
+# Run this workflow manually from the Actions tab if you ever want to rebuild it.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write

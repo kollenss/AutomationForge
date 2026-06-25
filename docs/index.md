@@ -1,5 +1,11 @@
 # PropForge
 
+!!! warning "Frozen snapshot — not actively maintained"
+    This documentation site is a point-in-time snapshot and may be out of date.
+    The current source of truth lives in the repository — see
+    [`management/GAMEFORGE.md`](https://github.com/kollenss/AutomationForge/blob/main/management/GAMEFORGE.md)
+    and [`CLAUDE.md`](https://github.com/kollenss/AutomationForge/blob/main/CLAUDE.md).
+
 **PropForge** is a no-code platform for designing, wiring, and running physical escape room puzzles using a Raspberry Pi and DIY electronics. Instead of writing Python scripts to connect buttons to relays or RFID readers to solenoids, you drag hardware components onto a visual canvas and draw lines between their outputs and inputs. The platform takes care of the rest.
 
 ## What it does

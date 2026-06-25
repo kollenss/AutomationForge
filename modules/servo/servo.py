@@ -39,8 +39,10 @@ def get_components():
         'icon':          '⚙',
         'display_param': 'name',
         'params': [
-            {'key': 'gpio_pin', 'label': 'GPIO Pin (BCM)', 'type': 'number', 'default': 12},
-            {'key': 'name',     'label': 'Label',          'type': 'text',   'default': 'servo'},
+            {'key': 'gpio_pin', 'label': 'GPIO Pin (BCM)', 'type': 'number', 'default': 12,
+             'description': 'BCM GPIO number the servo signal wire connects to. E.g. 12. See PIN_MAP.md for assignments.'},
+            {'key': 'name',     'label': 'Label',          'type': 'text',   'default': 'servo',
+             'description': 'Display name shown on the card. E.g. servo.'},
         ],
         'inputs': [
             {'key': 'set_angle', 'label': 'Set Angle (0–180°)',

@@ -13,7 +13,7 @@
           "icon": "📜",
           "display_param": "label",
           "params": [
-            {"key": "label", "label": "Label", "type": "text", "default": "log"}
+            {"key": "label", "label": "Label", "type": "text", "default": "log", "description": "Name shown on the card and in the log line. E.g. door-check."}
           ],
           "inputs": [
             {"key": "value", "label": "Value", "description": "Logs whatever arrives here"}
@@ -41,11 +41,14 @@
                 {"value": "ends_with",   "label": "ends with"},
                 {"value": "greater_than","label": "> greater than"},
                 {"value": "less_than",   "label": "< less than"}
-              ]
+              ],
+              "description": "How the incoming value is compared against 'Compare to'. greater/less than compare as numbers; the rest as text."
             },
-            {"key": "operand",        "label": "Compare to",      "type": "text",   "default": ""},
+            {"key": "operand",        "label": "Compare to",      "type": "text",   "default": "",
+             "description": "The value to compare the input against. E.g. OP-0987 for text, or 5 for greater/less than."},
             {"key": "case_sensitive", "label": "Case sensitive",  "type": "select", "default": "0",
-             "options": [{"value": "0", "label": "No"}, {"value": "1", "label": "Yes"}]}
+             "options": [{"value": "0", "label": "No"}, {"value": "1", "label": "Yes"}],
+             "description": "Whether text comparisons care about upper/lowercase. E.g. No treats ABC and abc as equal."}
           ],
           "inputs": [
             {"key": "value", "label": "Value", "description": "The value to test — connect from any output"}
@@ -63,7 +66,7 @@
           "icon": "▶",
           "display_param": "scene_name",
           "params": [
-            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": ""}
+            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": "", "description": "Which scene to activate when a signal arrives."}
           ],
           "inputs": [
             {"key": "trigger", "label": "Trigger", "description": "Activates the named scene when any signal arrives"}
@@ -78,7 +81,7 @@
           "icon": "⏹",
           "display_param": "scene_name",
           "params": [
-            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": ""}
+            {"key": "scene_name", "label": "Scene", "type": "scene_select", "default": "", "description": "Which scene to deactivate when a signal arrives."}
           ],
           "inputs": [
             {"key": "trigger", "label": "Trigger", "description": "Deactivates the named scene when any signal arrives"}
@@ -92,8 +95,10 @@
           "color": "#0ea5e9",
           "icon": "⌨",
           "params": [
-            {"key": "url",      "label": "App URL",       "type": "text",     "default": "http://localhost:8080"},
-            {"key": "password", "label": "Override Code", "type": "password", "default": ""}
+            {"key": "url",      "label": "App URL",       "type": "text",     "default": "http://localhost:8080",
+             "description": "Base URL of the external web app GameForge controls. E.g. http://localhost:8080."},
+            {"key": "password", "label": "Override Code", "type": "password", "default": "",
+             "description": "Optional code sent to the app on Enable; leave blank to use the app's own configured code."}
           ],
           "inputs": [
             {"key": "enable",  "label": "Enable",  "description": "Enables keyboard input on the terminal"},
@@ -128,13 +133,15 @@
               "key": "code",
               "label": "Code (4 numbers 0-99, comma-separated)",
               "type": "text",
-              "default": "10,20,30,40"
+              "default": "10,20,30,40",
+              "description": "The 4 target numbers in order, each 0-99, comma-separated. E.g. 27,14,9,42."
             },
             {
               "key": "name",
               "label": "Label",
               "type": "text",
-              "default": "vault"
+              "default": "vault",
+              "description": "Display name shown on the card. E.g. vault."
             }
           ],
           "inputs": [
@@ -162,13 +169,15 @@
               "key": "valid_uids",
               "label": "Valid UIDs (comma-separated)",
               "type": "text",
-              "default": ""
+              "default": "",
+              "description": "Card UIDs that are accepted, comma-separated. Copy a UID from an RFID Reader's live scan. E.g. A1B2C3D4, 0F0E0D0C."
             },
             {
               "key": "name",
               "label": "Label",
               "type": "text",
-              "default": "RFID Gate"
+              "default": "RFID Gate",
+              "description": "Display name shown on the card. E.g. RFID Gate."
             }
           ],
           "inputs": [
@@ -186,8 +195,10 @@
           "color": "#8b5cf6",
           "icon": "🔒",
           "params": [
-            {"key": "password",     "label": "Password",     "type": "password", "default": ""},
-            {"key": "max_attempts", "label": "Max Attempts", "type": "number", "min": 1, "max": 99, "default": 3}
+            {"key": "password",     "label": "Password",     "type": "password", "default": "",
+             "description": "The code that unlocks, checked against the submitted text."},
+            {"key": "max_attempts", "label": "Max Attempts", "type": "number", "min": 1, "max": 99, "default": 3,
+             "description": "How many wrong tries before 'Max Attempts Reached' fires. E.g. 3."}
           ],
           "inputs": [
             {"key": "attempt", "label": "Password Input", "description": "Receives a password string to check against the configured password"}
@@ -204,8 +215,10 @@
           "color": "#8b5cf6",
           "icon": "✓",
           "params": [
-            {"key": "length",        "label": "Number of Steps", "type": "number", "min": 1, "max": 6, "default": 3},
-            {"key": "reset_on_fail", "label": "Reset on wrong order", "type": "boolean", "default": true}
+            {"key": "length",        "label": "Number of Steps", "type": "number", "min": 1, "max": 6, "default": 3,
+             "description": "How many steps must be completed in order, 1-6. Only that many Step inputs are used."},
+            {"key": "reset_on_fail", "label": "Reset on wrong order", "type": "boolean", "default": true,
+             "description": "If on, a step arriving out of order resets the checklist back to the start."}
           ],
           "inputs": [
             {"key": "step_1", "label": "Step 1", "description": "First thing that must happen"},
@@ -227,8 +240,10 @@
           "color": "#8b5cf6",
           "icon": "⏱",
           "params": [
-            {"key": "duration_s", "label": "Duration (s)", "type": "number", "min": 1, "default": 60},
-            {"key": "auto_start", "label": "Auto Start",  "type": "boolean", "default": false}
+            {"key": "duration_s", "label": "Duration (s)", "type": "number", "min": 1, "default": 60,
+             "description": "Countdown length in seconds. E.g. 60."},
+            {"key": "auto_start", "label": "Auto Start",  "type": "boolean", "default": false,
+             "description": "If on, the timer starts as soon as the scene activates — no Start signal needed."}
           ],
           "inputs": [
             {"key": "start", "label": "Start", "description": "Starts the countdown from the configured duration"},
@@ -247,7 +262,8 @@
           "icon": "📌",
           "display_param": "value",
           "params": [
-            {"key": "value", "label": "Value", "type": "text", "default": ""}
+            {"key": "value", "label": "Value", "type": "text", "default": "",
+             "description": "The value emitted on Value Out when triggered. E.g. red to drive an LED, or any text/number."}
           ],
           "inputs": [
             {"key": "trigger", "label": "Trigger", "description": "Any incoming signal triggers the output"}
@@ -263,7 +279,7 @@
           "color": "#8b5cf6",
           "icon": "📝",
           "params": [
-            {"key": "text", "label": "Text", "type": "text", "default": ""}
+            {"key": "text", "label": "Text", "type": "text", "default": "", "description": "Free-text annotation shown on the canvas. Has no effect on the game."}
           ],
           "inputs":  [],
           "outputs": []

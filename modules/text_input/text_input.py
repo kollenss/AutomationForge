@@ -34,9 +34,10 @@ def get_components():
         'icon':          '📱',
         'display_param': 'name',
         'params': [
-            {'key': 'name',       'label': 'Label',       'type': 'text',   'default': 'text input'},
+            {'key': 'name',       'label': 'Label',       'type': 'text',   'default': 'text input',
+             'description': 'Display name shown on the card. E.g. text input.'},
             {'key': 'input_id',   'label': 'Input ID',    'type': 'text',   'default': '1',
-             'description': 'Unique ID — allows multiple text inputs on different ports'},
+             'description': 'Unique ID — lets you run multiple text inputs on different ports. E.g. 1.'},
         ],
         'inputs':  [],
         'outputs': [

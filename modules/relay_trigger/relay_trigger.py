@@ -29,8 +29,10 @@ def get_components():
         'display_param': 'channel',
         'params': [
             {'key': 'channel', 'label': 'Channel', 'type': 'select',
-             'default': 1, 'options': [{'value': i, 'label': f'Channel {i}'} for i in range(1, n + 1)]},
-            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid'},
+             'default': 1, 'options': [{'value': i, 'label': f'Channel {i}'} for i in range(1, n + 1)],
+             'description': 'Which relay channel on the board this card controls. E.g. Channel 1.'},
+            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid',
+             'description': 'Display name shown on the card. E.g. solenoid.'},
         ],
         'inputs': [
             {'key': 'trigger_on',  'label': 'Turn ON', 'description': 'Activates the relay channel, connecting the circuit'},

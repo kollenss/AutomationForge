@@ -68,10 +68,14 @@ def get_components():
         'icon':          '🔊',
         'display_param': 'track',
         'params': [
-            {'key': 'track',      'label': 'Track',           'type': 'number', 'default': 1,  'min': 1, 'max': 255},
-            {'key': 'volume',     'label': 'Volume (0-30)',    'type': 'number', 'default': 20, 'min': 0, 'max': 30},
-            {'key': 'duration_s', 'label': 'Duration (s)',     'type': 'number', 'default': 0},
-            {'key': 'name',       'label': 'Label',            'type': 'text',   'default': 'speaker'},
+            {'key': 'track',      'label': 'Track',         'type': 'number', 'default': 1,  'min': 1, 'max': 255,
+             'description': 'Which MP3 to play, by filename on the SD card (/MP3/0001.mp3 … 0255.mp3). E.g. 1 plays 0001.mp3.'},
+            {'key': 'volume',     'label': 'Volume (0-30)', 'type': 'number', 'default': 20, 'min': 0, 'max': 30,
+             'description': 'Playback volume from 0 (silent) to 30 (max). E.g. 20.'},
+            {'key': 'duration_s', 'label': 'Duration (s)',  'type': 'number', 'default': 0,
+             'description': 'Clip length in seconds — the Done output fires after this. Set it to your audio file length. 0 = never fire Done.'},
+            {'key': 'name',       'label': 'Label',         'type': 'text',   'default': 'speaker',
+             'description': 'Display name shown on the card. E.g. speaker.'},
         ],
         'inputs': [
             {'key': 'trigger', 'label': 'Play Track', 'description': 'Plays the configured track at the configured volume'},

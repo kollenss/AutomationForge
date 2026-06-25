@@ -47,8 +47,10 @@ def get_components():
         'display_param': 'encoder_id',
         'params': [
             {'key': 'encoder_id', 'label': 'Encoder', 'type': 'select',
-             'default': ENCODERS[0]['id'], 'options': options},
-            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'dial'},
+             'default': ENCODERS[0]['id'], 'options': options,
+             'description': 'Which physical KY-040 encoder this card represents (each has its own CLK/DT pins).'},
+            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'dial',
+             'description': 'Display name shown on the card. E.g. dial.'},
         ],
         'inputs':  [],
         'outputs': [

@@ -428,6 +428,19 @@ Lägg till ny executor för ny komponenttyp:
 
 - **Komponentbibliotek: disconnected-indikator** — visa om modul inte är ansluten
 
+### Kända hårdvaruproblem (fixas senare)
+
+- **WS2812B: sista LED flackar under pulse/rainbow.** Fast sken (`set_color`) är
+  stabilt, men vid kontinuerliga uppdateringar flackar sista lampan på alla färger
+  utom ren röd/grön. Inte ström (2 LED drar nästan inget; fast vitt sken är stabilt)
+  och inte en latch-artefakt (ghost-pixel i slutet med `led_count+1` hjälpte inte).
+  Det är signalintegritet på datalinjen. Åtgärder, billigast → definitiv:
+  1. Verifiera gemensam, kort, grov GND mellan Pi och strippens 5V-källa.
+  2. 330–470Ω serieresistor på DIN nära första LED + kort datakabel.
+  3. Level shifter 3,3V→5V (74AHCT125 / 74HCT245) på DIN — definitiv fix.
+  4. Ev. 1000µF över 5V/GND vid strippen (mest relevant med fulla strippen).
+  Ej kritiskt för Diamond Heist nu; tas när hela 10-LED-strippen kopplas in.
+
 ---
 
 ## Web App Bridge — Terminal Interface

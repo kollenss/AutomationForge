@@ -80,8 +80,10 @@ def get_components():
                 'type': 'select',
                 'default': READERS[0]['id'],
                 'options': [{'value': r['id'], 'label': f"{r['id']} – {r['label']} (GPIO{r['ce_gpio']} / pin {_gpio_to_pin(r['ce_gpio'])})"} for r in READERS],
+                'description': 'Which physical RC522 reader this card represents (each reader has its own chip-select pin).',
             },
-            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader'},
+            {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'card reader',
+             'description': 'Display name shown on the card. E.g. card reader.'},
         ],
         'inputs': [
             {'key': 'enable',  'label': 'Enable',  'description': 'Activates this reader'},

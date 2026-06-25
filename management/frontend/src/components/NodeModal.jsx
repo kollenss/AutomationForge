@@ -135,7 +135,12 @@ export default function NodeModal({ node, library, scenes, onChange, onClose, on
           <div className="nm-body">
             {def.params.map(p => (
               <div key={p.key} className="nm-field">
-                <label>{p.label}</label>
+                <label>
+                  {p.label}
+                  {p.description && (
+                    <span className="nm-help" title={p.description}>ⓘ</span>
+                  )}
+                </label>
                 {p.type === 'scene_select' ? (
                   <select
                     value={node.data.params?.[p.key] ?? ''}

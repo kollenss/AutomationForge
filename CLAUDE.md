@@ -230,6 +230,16 @@ FLOOR 3 – The Vault  [vault.py, pigpio]
 - ❌ 3D printing not started
 - ❌ Physical construction not started
 
+## WS2812B – Slumpmässiga färgblinkningar (2026-08-29)
+
+**Symptom:** enstaka pixlar blinkade till i fel färg (ofta blått), slumpmässigt, oberoende av vilken effekt (pulse, chase, set_color …) som kördes.
+
+**Åtgärdat i två steg** (`modules/ws2812b/ws2812b.py`):
+1. Lade till `Device._write_lock` runt alla `setPixelColor`+`show()`-sekvenser — flera zoners animationstrådar kunde tidigare skriva till samma `PixelStrip` samtidigt och korrumpera DMA-överföringen. Löste inte hela problemet ensamt.
+2. Bytte `PixelStrip(..., dma=5)` istället för `rpi_ws281x`s default (`dma=10`) — detta minskade frekvensen drastiskt (från flera/minut till ~1/minut).
+
+**Kvarstående, accepterad risk:** en enstaka blinkning kvarstår ibland (~1/minut). Trolig bakomliggande orsak (ej bekräftad): ingen nivåomvandlare/seriemotstånd/kondensator på datalinjen (GPIO21 → DIN, se `PIN_MAP.md`) i kombination med att ninja kör på WiFi (RF-störning är en känd källa till just den här typen av glitch på Pi + WS2812B). **Godkänt för nuvarande version av spelet** — om projektet någon gång serieproduceras bör nivåomvandlare + motstånd/kondensator läggas till för en robust lösning.
+
 ## Floor 3 – Kombinationslåset: Aktuell status & felsökning
 
 ### Mekanik (test_combo.py och vault.py – samma logik)

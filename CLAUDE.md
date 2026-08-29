@@ -44,6 +44,8 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 **SSH MCP (→ ninja) — run scripts, build frontend, tail logs, restart services, debug.** Never edit files over SSH.
 
+**`C:\Dev\GameForge` is a separate local clone — SD-card-failure backup only, never edit directly.** `Z:\` is the live copy actually running on the Pi and is the only place changes should be made and committed/pushed from. After pushing from `Z:\`, sync the backup clone with a plain `git pull` (discard any local diff there first — it should never carry independent edits). Two independently-edited working copies is how the WS2812B pulse fix briefly diverged (2026-08-29) before this rule was written down.
+
 **The systemd service is `propforge`**, not `gameforge`. GameForge is the product's working title.
 
 ### MCP Tools – Best Fit

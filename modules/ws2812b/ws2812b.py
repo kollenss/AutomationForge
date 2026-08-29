@@ -312,15 +312,17 @@ class Device:
     def pulse(self, params):
         """Start a breathing animation. Non-blocking — returns immediately."""
         leds, key, brightness, rgb = self._extract(params)
-        step = 6
+        delay = float(params.get('delay_ms', 60)) / 1000
+        step = 3
+        floor = max(10, brightness // 2)
 
         def _run(cancel):
             while not cancel.is_set():
-                for b in list(range(20, brightness, step)) + list(range(brightness, 20, -step)):
+                for b in list(range(floor, brightness, step)) + list(range(brightness, floor, -step)):
                     if cancel.is_set():
                         break
                     self._set_zone(leds, rgb, b)
-                    time.sleep(0.03)
+                    time.sleep(delay)
 
         self._start_anim(key, _run)
         return {'ok': True}

@@ -178,7 +178,12 @@ def _get_strip(gpio_pin, led_count):
     with _strips_lock:
         if gpio_pin not in _strips:
             if _HW_AVAILABLE:
-                strip = PixelStrip(led_count, gpio_pin)
+                # EXPERIMENT (2026-08-29): default dma=10 still showed random
+                # colour flashes even with all strip writes serialized in
+                # Device (see _write_lock). Trying dma=5 in case channel 10
+                # contends with something else on this board. Revert to the
+                # library default (drop the dma= kwarg) if this doesn't help.
+                strip = PixelStrip(led_count, gpio_pin, dma=5)
                 strip.begin()
             else:
                 strip = None

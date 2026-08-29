@@ -203,6 +203,12 @@ class Device:
         self._anim_lock  = threading.Lock()
         # last static colour per zone — used by blink to restore after flashing
         self._zone_color = {}   # zone key → (r, g, b)
+        # rpi_ws281x's show() is a single DMA transfer over the whole strip —
+        # two threads (e.g. two zones' animations) calling it concurrently can
+        # interleave mid-transfer and corrupt the buffer, which shows up as
+        # random-coloured flashes. Every setPixelColor+show sequence below
+        # must hold this lock so a frame is always written atomically.
+        self._write_lock = threading.Lock()
         # Clear strip on startup
         if self._strip:
             self._clear_all()
@@ -210,9 +216,10 @@ class Device:
     # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _clear_all(self):
-        for i in range(MANIFEST['led_count']):
-            self._strip.setPixelColor(i, Color(0, 0, 0))
-        self._strip.show()
+        with self._write_lock:
+            for i in range(MANIFEST['led_count']):
+                self._strip.setPixelColor(i, Color(0, 0, 0))
+            self._strip.show()
 
     def _stop_zone(self, key):
         """Stop any running animation on this zone and wait for it to exit.
@@ -249,9 +256,10 @@ class Device:
             return
         r, g, b = _scale(rgb, brightness)
         c = Color(r, g, b)
-        for i in leds:
-            self._strip.setPixelColor(i, c)
-        self._strip.show()
+        with self._write_lock:
+            for i in leds:
+                self._strip.setPixelColor(i, c)
+            self._strip.show()
 
     def _off_zone(self, leds):
         self._set_zone(leds, (0, 0, 0), 255)
@@ -340,8 +348,9 @@ class Device:
             r, g, b = _scale(rgb, brightness)
             c = Color(r, g, b)
             for i in leds:
-                self._strip.setPixelColor(i, c)
-                self._strip.show()
+                with self._write_lock:
+                    self._strip.setPixelColor(i, c)
+                    self._strip.show()
                 time.sleep(delay)
         self._zone_color[key] = rgb
         return {'ok': True}
@@ -368,9 +377,10 @@ class Device:
                     if cancel.is_set():
                         break
                     if self._strip:
-                        for j, idx in enumerate(leds):
-                            self._strip.setPixelColor(idx, c if j == pos else Color(0, 0, 0))
-                        self._strip.show()
+                        with self._write_lock:
+                            for j, idx in enumerate(leds):
+                                self._strip.setPixelColor(idx, c if j == pos else Color(0, 0, 0))
+                            self._strip.show()
                     time.sleep(delay)
 
         self._start_anim(key, _run)
@@ -386,11 +396,12 @@ class Device:
             offset = 0
             while not cancel.is_set():
                 if self._strip:
-                    for n, i in enumerate(leds):
-                        pos = (offset + n * spread) % 256
-                        r, g, b = _scale(_wheel(pos), brightness)
-                        self._strip.setPixelColor(i, Color(r, g, b))
-                    self._strip.show()
+                    with self._write_lock:
+                        for n, i in enumerate(leds):
+                            pos = (offset + n * spread) % 256
+                            r, g, b = _scale(_wheel(pos), brightness)
+                            self._strip.setPixelColor(i, Color(r, g, b))
+                        self._strip.show()
                 offset = (offset + 2) % 256
                 time.sleep(0.02)
 

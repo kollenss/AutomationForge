@@ -17,10 +17,11 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 | File | Contents |
 |------|----------|
-| `STORY.md` | Full story bible, characters, Cardinal's briefing script |
-| `GAMEPLAY.md` | All three acts, puzzle mechanics, game flow |
-| `COMPONENTS.md` | Full component inventory with status |
-| `diamond-heist-designdokument.md` | Image prompts (all 12), contract text, planning book text |
+| [`docs/diamond-heist/README.md`](docs/diamond-heist/README.md) | **Start here for story/game-design brainstorming.** Index of the story bible below — deliberately excludes engine/implementation details, which live in this file and `management/GAMEFORGE.md` instead. |
+| `docs/diamond-heist/STORY.md` | Full story bible, characters, Cardinal's briefing script |
+| `docs/diamond-heist/GAMEPLAY.md` | All three acts, puzzle mechanics, game flow |
+| `docs/diamond-heist/VISUAL-STYLE.md` | Art direction, palette, and all image-generation prompts |
+| `docs/diamond-heist/COMPONENTS.md` | Physical hardware/prop inventory with status |
 | `PIN_MAP.md` | **Single source of truth for all GPIO/pin assignments.** This file does not duplicate pin numbers — always check PIN_MAP.md. |
 
 ---

@@ -15,10 +15,10 @@ modules/state.json
 floor2_terminal/
 floor3_vault/
 audio/
-STORY.md
-GAMEPLAY.md
-COMPONENTS.md
-diamond-heist-designdokument.md
+/STORY.md
+/GAMEPLAY.md
+/COMPONENTS.md
+/diamond-heist-designdokument.md
 pgmin.py
 pgtest.py
 pgtest2.py

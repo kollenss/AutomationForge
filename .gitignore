@@ -10,31 +10,3 @@ management/frontend/node_modules/
 modules/sounds/
 modules/state.json
 *.log
-
-# ── Diamond Heist game files (not part of AutomationForge) ─────────────────
-floor2_terminal/
-floor3_vault/
-audio/
-/STORY.md
-/GAMEPLAY.md
-/COMPONENTS.md
-/diamond-heist-designdokument.md
-pgmin.py
-pgtest.py
-pgtest2.py
-pgtest3.py
-terminal_gui.log
-
-# ── Pi home dotfiles ────────────────────────────────────────────────────────
-.Xauthority
-.bash_history
-.bash_logout
-.bashrc
-.cache/
-.claude/
-.config/
-.local/
-.npm/
-.profile
-.sudo_as_admin_successful
-.xinitrc

@@ -70,9 +70,30 @@ def _exec_relay(node_id, params, handle, value, emit, propagate, get_state):
         action = 'off'
     else:
         action = 'on' if value else 'off'
+
+    # Cancel any pending auto-off — a fresh command always overrides it.
+    state = get_state({'timer': None})
+    t = state.get('timer')
+    if t:
+        t.cancel()
+        state['timer'] = None
+
     resp = _hw_post(f'/hardware/relay_board/{action}', {'channel': channel})
     if emit and isinstance(resp.get('state'), dict):
         emit('relay_state', resp['state'])
+
+    auto_off_s = float(params.get('auto_off_s', 0) or 0)
+    if action == 'on' and auto_off_s > 0:
+        def _auto_off():
+            state['timer'] = None
+            r = _hw_post('/hardware/relay_board/off', {'channel': channel})
+            if emit and isinstance(r.get('state'), dict):
+                emit('relay_state', r['state'])
+
+        timer = threading.Timer(auto_off_s, _auto_off)
+        timer.daemon = True
+        timer.start()
+        state['timer'] = timer
 
 
 def _exec_rfid_auth(node_id, params, handle, value, emit, propagate, get_state):
@@ -454,7 +475,12 @@ def _exec_timer(node_id, params, handle, value, emit, propagate, get_state):
         return
 
     if handle == 'start':
-        _cancel()
+        if state['running']:
+            # Already counting down — a duplicate start pulse (e.g. an RFID
+            # reader re-firing while the same card just sits on it) must not
+            # reset the countdown, or it can never reach 0 while the card
+            # stays in place.
+            return
         cancel_ev = threading.Event()
         state['running'] = True
         state['cancel_event'] = cancel_ev

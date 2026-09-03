@@ -236,6 +236,15 @@ class Device:
     def _poll_loop(self):
         spi = self._spi
         prev_uids = {}
+        miss_counts = {}
+        # A single failed REQIDL/anticoll (SPI bus contention across readers,
+        # antenna timing jitter) must not read as "card removed" while the
+        # card is actually still sitting still — that flips prev_uids to
+        # None, so the next successful read looks like a brand new card and
+        # re-fires card_read, restarting anything downstream (e.g. a Timer)
+        # for as long as the card is present. Require a few consecutive
+        # misses before treating the card as gone.
+        _MISS_THRESHOLD = 3  # ~300ms of consecutive failed polls
 
         while True:
             for r in self._readers:
@@ -245,6 +254,7 @@ class Device:
                     if _request(spi, cs) == _MI_OK:
                         status, uid = _anticoll(spi, cs)
                         if status == _MI_OK and len(uid) >= 4:
+                            miss_counts[rid] = 0
                             uid_str = ''.join(f'{b:02X}' for b in uid[:4])
                             if uid_str != prev_uids.get(rid):
                                 prev_uids[rid] = uid_str
@@ -252,9 +262,14 @@ class Device:
                                 print(f'[rfid] reader {rid} ({r["label"]}) UID: {uid_str}')
                                 if self._callback:
                                     self._callback('card_read', {'reader_id': rid, 'uid': uid_str})
+                        else:
+                            miss_counts[rid] = miss_counts.get(rid, 0) + 1
                     else:
-                        prev_uids[rid] = None
+                        miss_counts[rid] = miss_counts.get(rid, 0) + 1
                 except Exception:
+                    miss_counts[rid] = miss_counts.get(rid, 0) + 1
+
+                if miss_counts.get(rid, 0) >= _MISS_THRESHOLD:
                     prev_uids[rid] = None
 
             time.sleep(_POLL_INTERVAL)

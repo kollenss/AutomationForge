@@ -33,6 +33,8 @@ def get_components():
              'description': 'Which relay channel on the board this card controls. E.g. Channel 1.'},
             {'key': 'name', 'label': 'Label', 'type': 'text', 'default': 'solenoid',
              'description': 'Display name shown on the card. E.g. solenoid.'},
+            {'key': 'auto_off_s', 'label': 'Auto-Off After (s)', 'type': 'number', 'default': 0, 'min': 0, 'max': 30,
+             'description': 'Automatically turn OFF this many seconds after Turn ON fires. 0 = stay on until Turn OFF. Use this for solenoids to avoid overheating the coil.'},
         ],
         'inputs': [
             {'key': 'trigger_on',  'label': 'Turn ON', 'description': 'Activates the relay channel, connecting the circuit'},

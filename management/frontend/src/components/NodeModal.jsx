@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { socket } from '../socket'
 import './NodeModal.css'
 
-function RelayLive({ channel }) {
+function RelayLive({ channel, autoOffS = 0 }) {
   const ch  = Number(channel) >= 1 ? Number(channel) : 1
   const chS = String(ch)
   const [state, setState] = useState(null)
   const [busy, setBusy]   = useState(false)
   const [err, setErr]     = useState('')
+  const autoOffTimer = useRef(null)
 
   useEffect(() => {
     api.getRelayState()
@@ -20,12 +21,19 @@ function RelayLive({ channel }) {
     return () => socket.off('relay_state', onState)
   }, [ch, chS])
 
+  // Cancel any pending auto-off if the modal closes or the channel changes.
+  useEffect(() => () => clearTimeout(autoOffTimer.current), [ch])
+
   async function toggle(action) {
+    clearTimeout(autoOffTimer.current)
     setBusy(true)
     setErr('')
     try {
       await api.setRelay(ch, action)
       // State update arrives via socket event
+      if (action === 'on' && autoOffS > 0) {
+        autoOffTimer.current = setTimeout(() => toggle('off'), autoOffS * 1000)
+      }
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -98,7 +106,7 @@ function RfidLive({ params }) {
 }
 
 const LIVE_COMPONENTS = {
-  relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
+  relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} autoOffS={Number(params?.auto_off_s) || 0} />,
   rfid_reader:   ({ params }) => <RfidLive  params={params} />,
 }
 

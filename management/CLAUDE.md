@@ -142,6 +142,8 @@ Signal flow-visualisering (Debug mode):
 | `activate_scene`, `deactivate_scene` | inline i `process_event` | ✅ implementerad |
 | `on_scene_start` | ingen executor (fires externt) | ✅ implementerad |
 | `checklist`     | `_exec_checklist`     | ✅ implementerad (step_1–step_6 i ordning → complete / out_of_order) |
+| `if_else`       | `_exec_if_else`       | ✅ implementerad (grindar nedströms noder tills villkoret uppfylls) |
+| `console_log`   | `_exec_console_log`   | ✅ implementerad (skriver rad till Signal Log via `console_log`-event) |
 | `password_lock` | saknas | ⏳ finns i library, ej i engine |
 
 ### Executor-signatur

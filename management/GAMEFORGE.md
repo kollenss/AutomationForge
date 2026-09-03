@@ -37,19 +37,20 @@ Målet är att en "game designer" utan djup kodkunskap ska kunna:
 
 ```
 AutomationForge/
-├── modules/                      Hårdvarumoduler (en fil per enhet)
+├── modules/                      Hårdvarumoduler — en undermapp per enhetstyp
 │   ├── hardware_service.py       Flask REST API (port 5101) — äger all hårdvara
-│   ├── relay_trigger.py          USB Relay Board (4 kanaler, trigger_on/trigger_off)
-│   ├── rotary_encoder.py         KY-040 encoder(s) — interrupt-driven, delta-events
-│   ├── encoder.py                RotaryEncoder-klass (återanvänds av rotary_encoder.py)
-│   └── ...                       Framtida moduler (RFID, DFPlayer, etc.)
+│   ├── relay_trigger/relay_trigger.py
+│   ├── rotary_encoder/
+│   ├── rfid/rfid.py
+│   ├── servo/, max7219_display/, dfplayer/, ws2812b/, usb_device_detector/, text_input/
+│   └── generate_sounds.py        Deterministisk SFX-generator (sinusvågor)
 │
 └── management/
     ├── app.py                    Flask + Socket.IO (port 5000)
     ├── engine.py                 GameEngine — server-side grafexekverare
     ├── component_library.json    Statiska Logic-komponenter
     ├── data/
-    │   └── projects/             En JSON-fil per projekt (UUID.json)
+    │   └── projects/             En JSON-fil per projekt (UUID.json) — gitignorerad
     ├── static/                   Byggd React-app (serveras av Flask)
     └── frontend/                 React-källkod (byggs med Vite)
         └── src/
@@ -60,16 +61,18 @@ AutomationForge/
             │   └── SceneEditorPage.jsx
             └── components/
                 ├── ComponentLibrary.jsx
-                ├── ComponentNode.jsx   (RelayStatus + EncoderStatus live på kortet)
+                ├── ComponentNode.jsx   (live-status + simulering på kortet)
                 ├── NodeModal.jsx
                 └── NodeModal.css
 ```
+
+> **Detaljerad kodnavigation (var varje sak finns, hur man lägger till en ny komponenttyp/executor/live-status) hålls löpande uppdaterad i [`management/CLAUDE.md`](CLAUDE.md) — den är auktoritativ källa för kodstruktur.** Den här filen fokuserar på vision, REST-kontrakt och backlog och länkar dit istället för att duplicera detaljer som annars tenderar att bli inaktuella.
 
 ---
 
 ## Hardware Service (`modules/hardware_service.py`)
 
-En enda Flask-tjänst på port 5101 som **äger all hårdvara**. Både GameForge och Web App Bridges (t.ex. floor2_terminal) pratar med denna tjänst istället för att hålla hårdvara direkt.
+En enda Flask-tjänst på port 5101 som **äger all hårdvara**. Både GameForge och externa Web App Bridges (t.ex. en framtida Floor 2-terminalapp, se längre ner) pratar med denna tjänst istället för att hålla hårdvara direkt.
 
 **Modulupptäckt vid start:** Scannar `modules/` efter `.py`-filer som innehåller `MANIFEST` och `Device`. Filer utan dessa ignoreras (test-scripts, utilities).
 
@@ -148,15 +151,17 @@ PUT    /api/settings/autostart       → sätt/rensa autostart ({ project_id: nu
 
 - **Lagring:** ett projekt = en JSON-fil i `management/data/projects/<uuid>.json`. `<uuid>_unlock.json` = runtime-state. `management/data/` är **gitignorerad** → projekt följer inte med i git; en ny Pi (fresh bootstrap) startar tom.
 - **Källa till sanning = den centrala Pi:n.** Alla klienter ansluter till `http://ninja.local:5000` och delar samma data. Frontenden cachar inga projekt (bara `gf_layout`/`gf_debug` i localStorage).
-- **Backup/migrering = Export/Import** (knappar i ProjectsPage). Export laddar ner alla projekt som en JSON-bundle med scenens `active`-flagga strippad; Import återställer (skip/overwrite/duplicate). Använd detta för att seeda en ny Pi eller flytta arbete — t.ex. innan lånade ninja lämnas tillbaka: Export på ninja → Import på egen Pi.
+- **Backup/migrering = Export/Import** (knappar i ProjectsPage). Export laddar ner alla projekt som en JSON-bundle med scenens `active`-flagga strippad; Import återställer (skip/overwrite/duplicate). Använd detta regelbundet som backup av `management/data/` (se `Z:\CLAUDE.md` → Backup) och för att seeda en ny Pi eller flytta arbete.
 - **Autostart:** `data/settings.json` (per-instans, gitignorerad) `{ "autostart": { "project_id", "scene_id" } }`. Vid boot laddar `_autoload_engine()` det projektet och aktiverar exakt den scenen (kör `on_scene_start`, som Activate-knappen). Ej satt → fallback: senast ändrade projekt med sparade scen-states. Ställs in via 🚀 "Start on launch"-knappen per scenkort (ett projekt + en scen).
 
 **Hårdvara (proxy till hardware_service):**
 ```
 GET  /api/hardware/relay               → state {1: bool, 2: bool, ...}
-POST /api/hardware/relay/:ch/on        → slå på kanal
-POST /api/hardware/relay/:ch/off       → slå av kanal
+POST /api/hardware/relay/:ch/:action   → slå på/av kanal (action: on|off)
+GET  /api/hardware/status              → hardware_service-anslutning + laddade moduler
+POST /api/hardware/restart             → startar om hardware-service (för att pröva nyinkopplad hårdvara)
 ```
+Liknande proxy-endpoints finns per modul (`/api/hardware/text_input`, `/api/hardware/ws2812b/<cmd>`, `/api/hardware/servo/<cmd>`, …) — se `app.py` för den fullständiga, aktuella listan istället för att lita på en handskriven kopia här.
 
 ---
 
@@ -172,98 +177,17 @@ POST /api/hardware/relay/:ch/off       → slå av kanal
 
 ## Komponentbiblioteket
 
-`component_library.json` innehåller **bara Logic-komponenter** (Password Lock, Sequence Gate, Timer, Note). Hårdvarukomponenter (Input/Output) genereras dynamiskt av modulerna via hardware_service.
+`component_library.json` innehåller **bara Logic-komponenter** (t.ex. Timer, Password Lock, Combo Lock, RFID Auth, Checklist, If/Else, Web App Bridge, Console Log, Note). Hårdvarukomponenter (Input/Output) genereras dynamiskt av modulerna via hardware_service.
 
-### Schema för en komponent
-
-```json
-{
-  "type": "relay_channel",
-  "label": "Relay Channel",
-  "subtitle": "USB Relay Board",
-  "color": "#f59e0b",
-  "icon": "⚡",
-  "display_param": "channel",        // Visas som badge på canvas-kortet
-  "params": [
-    {
-      "key": "channel",
-      "label": "Channel (1–4)",
-      "type": "number",
-      "default": 1,
-      "min": 1,                      // Begränsar input i modalen
-      "max": 4                       // Sätts dynamiskt från MANIFEST.channels
-    },
-    {
-      "key": "name",
-      "label": "Label",
-      "type": "text",
-      "default": "solenoid"          // Visas som subtitle på canvas-kortet
-    }
-  ],
-  "inputs":  [{ "key": "trigger", "label": "Trigger" }],
-  "outputs": [{ "key": "state",   "label": "State"   }]
-}
-```
-
-**Param-typer:**
-| Typ | Input | Kommentar |
-|-----|-------|-----------|
-| `text` | `<input type=text>` | Visas som subtitle på kortet om key=`name` |
-| `number` | `<input type=number>` | Respekterar `min`/`max` |
-| `password` | `<input type=password>` | |
-| `select` | `<select>` | Kräver `options: [{value, label}]` |
-| `boolean` | `<input type=checkbox>` | |
-| `pin` | `<input type=number>` | Hint om fysiskt board-pinnummer |
-
-**Canvas-kortet:**
-- `display_param` → badge (t.ex. kanalnummer) i kortets header
-- `params.name` → visas som subtitle (ersätter standard-subtitle)
+Fullständigt schema (params, param-typer, canvas-kortets `display_param`/badge-konvention): se [`management/CLAUDE.md`](CLAUDE.md) → **"Komponentdefinition — schema"**.
 
 ---
 
-## Live-status på canvas-kort
+## Live-status, simulering och live-testning
 
-Komponenter visar live-status direkt på canvas-kortet via Socket.IO — **ingen polling**.
+Canvas-korten visar live-status via Socket.IO (ingen polling), input-komponenter har simuleringskontroller direkt på kortet, och `NodeModal.jsx` har live-testkontroller för vissa typer (t.ex. relä ON/OFF).
 
-| Komponenttyp | Socket-event | Vad visas |
-|---|---|---|
-| `relay_channel` | `relay_state` | Grön/grå prick + ON/OFF |
-| `ky040_encoder` | `encoder_state` | Position-räknare + riktningspil |
-| `combo_lock` | `combo_state` | INACTIVE / PHASE X/4 / FAILED / UNLOCKED |
-| `timer` | `timer_state` | Nedräkning i sekunder, grön dot när aktiv |
-| `max7219` | `max7219_state` | Displaytext i 7-segment-stil på kortet |
-
-Live-statuses filtreras på `node_id` (utom relay och encoder som filtrerar på kanal/encoder_id).
-
-## Hårdvarusimulering på canvas-kort
-
-Input-komponenter har simuleringskontroller direkt på kortet för att testa utan fysisk hårdvara. POSTar till `/engine/hardware_event` — identiskt med riktiga hårdvaru-events.
-
-| Komponenttyp | Kontroller |
-|---|---|
-| `ky040_encoder` | ◀ (delta -1) · ● (click) · ▶ (delta +1) |
-| `rfid_reader` | UID-textfält + Scan-knapp (Enter fungerar också) |
-
-## Live-testning i NodeModal
-
-`NodeModal.jsx` har ett `LIVE_COMPONENTS`-objekt som mappar komponenttyp → React-komponent:
-
-```js
-const LIVE_COMPONENTS = {
-  relay_channel: ({ params }) => <RelayLive channel={params?.channel ?? 1} />,
-}
-```
-
-### `RelayLive` (implementerad)
-
-- Hämtar initial state via `GET /api/hardware/relay` vid mount
-- Uppdateras via `relay_state` socket-event (ingen polling)
-- ON/OFF-knappar — state uppdateras via socket efter toggle
-
-Lägg till ny live-sektion:
-1. Skriv React-komponent i `NodeModal.jsx`
-2. Prenumerera på relevant socket-event (eller lägg till nytt i `app.py`)
-3. Registrera i `LIVE_COMPONENTS`
+Aktuell lista över vilka komponenttyper som har vad, och receptet för att lägga till fler: se [`management/CLAUDE.md`](CLAUDE.md) → **"Canvas-kort: live-status och simulering"**.
 
 ---
 
@@ -292,22 +216,14 @@ Lägg till ny live-sektion:
 
 ## Build & Deploy
 
+Kort version — fullständiga steg (systemd, dependencies, lokal utveckling utan Pi) finns i `Z:\CLAUDE.md` → "GameForge — Installation på ny Pi" och `management/CLAUDE.md` → "Bygga frontend"/"Systemd-tjänster".
+
 ```bash
 # Bygga frontend (på Pi via SSH — kör INTE npm på Samba-share, ger EPERM):
 cd /home/pi/AutomationForge/management/frontend && npm run build
 # Output hamnar i ../static/ — efter build:
-sudo systemctl restart propforge
-
-# Tjänster hanteras av systemd (autostart vid boot):
-sudo systemctl start|stop|restart pigpiod
-sudo systemctl start|stop|restart hardware-service
-sudo systemctl start|stop|restart propforge
-
-# Startordning: pigpiod → hardware-service → propforge (hanteras av Requires=)
-# OBS: huvudtjänsten heter propforge (inte gameforge).
+sudo systemctl restart propforge   # huvudtjänsten heter propforge, inte gameforge
 ```
-
----
 
 ---
 
@@ -364,7 +280,7 @@ hardware_service  ─POST /engine/hardware_event──►  GameEngine
 
 **Engine-respons:** hittar canvas-noder med matchande `componentType` (och matchande params vid dict-value), traverserar edges, anropar executor för varje mål-nod.
 
-### Socket.IO-events (engine → frontend)
+### Socket.IO-events (engine/app.py → frontend)
 
 | Event | Payload | Trigger |
 |-------|---------|---------|
@@ -373,21 +289,17 @@ hardware_service  ─POST /engine/hardware_event──►  GameEngine
 | `combo_state` | `{node_id, enabled?, phase?, count?, unlocked?, failed?}` | Varje combo_lock-tillståndsändring |
 | `timer_state` | `{node_id, remaining, running}` | Start, varje tick, reset |
 | `max7219_state` | `{node_id, text, scrolling}` | Varje text/show/scroll/clear-kommando |
+| `checklist_state` | `{node_id, ...}` | Varje checklist-stegändring |
+| `node_event` | `{node_id, label, ok?}` | Generisk kort-notis (RFID auth ✓/✗, dfplayer, servo, if_else, m.fl.) |
+| `console_log` | `{node_id, ...}` | Console Log-nod skriver en rad |
+| `if_else_gate_state` | `{node_id, ...}` | If/Else-nodens grindtillstånd ändras |
 | `node_pulse` | `{node_id}` | Nod aktiverades (debug mode) |
 | `edge_pulse` | `{edge_id, value, target_handle}` | Kant traverserades (debug mode) |
-| `scene_state` | `{scene_id, active}` | Scen aktiverades eller deaktiverades |
+| `scene_state` | `{scene_id, active}` | Scen aktiverades eller deaktiverades (emittas från `app.py`, inte `engine.py`) |
 
 ### Executors (`engine.py`)
 
-```python
-_EXECUTORS = {
-    'relay_channel': _exec_relay,  # Stöder trigger_on / trigger_off som separata handles
-}
-```
-
-Lägg till ny executor för ny komponenttyp:
-1. Skriv `_exec_<type>(params, handle, value, emit)` i `engine.py`
-2. Registrera i `_EXECUTORS`
+Aktuell, fullständig lista över `_exec_<type>`-funktioner och receptet för att lägga till en ny: se [`management/CLAUDE.md`](CLAUDE.md) → **"Engine-exekverare (nuläge)"** och **"Executor-signatur"**.
 
 ### Latenskritisk väg
 
@@ -402,54 +314,24 @@ Lägg till ny executor för ny komponenttyp:
 
 ## Nästa steg (backlog)
 
-### Implementerat ✅
+Vad som redan är implementerat (executors, live-status, simulering) står i `management/CLAUDE.md` och hålls där — listas inte igen här för att undvika att två listor glider isär.
 
-- [x] **`engine.py`** — server-sida grafexekverare i GameForge
-- [x] **Socket.IO** (`flask-socketio`) — push till frontend utan polling
-- [x] **Relay live-status** — direkt på canvas-kortet via `relay_state` socket-event
-- [x] **Interrupt-driven input** — KY-040 encoder med GPIO-interrupt + callback
-- [x] **KY-040 encoder-modul** — `rotary_encoder.py`, multi-encoder-stöd via ENCODERS-lista
-- [x] **Encoder live-status** — position + riktningspil på canvas-kortet via `encoder_state`
-- [x] **Systemd-services** — pigpiod + hardware-service + gameforge autostart vid boot
-- [x] **Scenaktivering** — `active`-flagga per scen, engine filtrerar hårdvaru-events till aktiva scener
-- [x] **on_scene_start** — Logic-kort som fires en gång när scenen aktiveras
-- [x] **activate_scene / deactivate_scene** — Logic-kort med `scene_select`-dropdown
-- [x] **Web App Bridge** — Logic-kort som integrerar extern webbapp via HTTP; skickar enable/disable, tar emot `success`/`failure`-events
-- [x] **USB Device Detector-simulering** — dropdown YubiKey/USB Memory + Insert/Remove
-- [x] **Scennamn inline-redigering** — klicka scennamn i ProjectsPage för att byta namn
+**Kvarstående:**
+- **`password_lock`-executor saknas** — komponenten finns definierad i `component_library.json` men har ingen `_exec_password_lock` i `engine.py` än.
+- **Floor 2 Web App Bridge-appen behöver (åter)skrivas** — `terminal_gate`-noden och HTTP-kontraktet finns (se sektionen nedan), men själva telefon-/terminalappen finns inte på Pi:n just nu. Se `Z:\CLAUDE.md` → Next Step.
+- **Komponentbibliotek: disconnected-indikator** — visa om en hårdvarumodul inte är ansluten.
 
-### Hårdvarumoduler att lägga till
+### Kända hårdvaruproblem
 
-| Modul | Live-test i GameForge | Engine-event |
-|-------|----------------------|-------------|
-| NeoPixel Ring | Välj färg, tänd/släck | Output-only |
-
-### Platform
-
-- **Komponentbibliotek: disconnected-indikator** — visa om modul inte är ansluten
-
-### Kända hårdvaruproblem (fixas senare)
-
-- **WS2812B: sista LED flackar under pulse/rainbow.** Fast sken (`set_color`) är
-  stabilt, men vid kontinuerliga uppdateringar flackar sista lampan på alla färger
-  utom ren röd/grön. Inte ström (2 LED drar nästan inget; fast vitt sken är stabilt)
-  och inte en latch-artefakt (ghost-pixel i slutet med `led_count+1` hjälpte inte).
-  Det är signalintegritet på datalinjen. Åtgärder, billigast → definitiv:
-  1. Verifiera gemensam, kort, grov GND mellan Pi och strippens 5V-källa.
-  2. 330–470Ω serieresistor på DIN nära första LED + kort datakabel.
-  3. Level shifter 3,3V→5V (74AHCT125 / 74HCT245) på DIN — definitiv fix.
-  4. Ev. 1000µF över 5V/GND vid strippen (mest relevant med fulla strippen).
-  Ej kritiskt för Diamond Heist nu; tas när hela 10-LED-strippen kopplas in.
+- **WS2812B — signalintegritet på datalinjen.** En äldre observation var att sista LED:n flackade under kontinuerliga uppdateringar (pulse/rainbow) medan fast sken var stabilt — matchar bristande signalintegritet, inte strömförsörjning. En senare, mer akut variant (slumpmässiga pixlar i fel färg) diagnostiserades och delvis åtgärdades 2026-08-29 (write-lock + `dma=5`) — se `Z:\CLAUDE.md` → **"WS2812B – Slumpmässiga färgblinkningar (2026-08-29)"** för aktuell status och den kvarstående accepterade risken. Den definitiva fixen för båda är sannolikt densamma: nivåomvandlare (74AHCT125/74HCT245) + seriemotstånd på DIN. Inte kritiskt för Diamond Heist i nuvarande version.
 
 ---
 
 ## Web App Bridge — Terminal Interface
 
-`/home/pi/floor2_terminal/terminal_web.py` — fristående Flask-app på port 8080.
+En **Web App Bridge** är en extern webbapp som integreras med GameForge via HTTP: GameForge styr appen med enable/disable-kommandon och appen rapporterar `success`/`failure` tillbaka som events. `terminal_gate` (Floor 2:s hacker-terminal för Diamond Heist) är den avsedda första implementationen av mönstret, men mönstret i sig är generiskt och återanvändbart för vilken extern app som helst.
 
-En **Web App Bridge** är en extern webbapp som integreras med GameForge via HTTP. GameForge styr appen med enable/disable-kommandon och appen rapporterar `success`/`failure` tillbaka som events. Denna implementation är en hacker-terminal för Diamond Heist — men mönstret är generiskt och går att återanvända för vilken extern app som helst.
-
-Startas manuellt vid boot (se CLAUDE.md). `floor2_terminal/` är gitignorerad.
+> **Status:** noden och kontraktet nedan är implementerade i GameForge (`_exec_terminal_gate` i `engine.py`), men den faktiska appen som ska svara på `/enable`/`/disable`/`/api/validate` — tänkt att köras som en fristående Flask-app på port 8080, t.ex. `terminal_web.py` — finns inte på Pi:n just nu (verifierat 2026-09-03). Kontraktet nedan är alltså specifikationen för vad den appen behöver implementera, inte en beskrivning av något som redan kör.
 
 **Signalflöde:**
 ```
@@ -476,7 +358,7 @@ Startas manuellt vid boot (se CLAUDE.md). `floor2_terminal/` är gitignorerad.
 | `POST /api/validate` | Validates player input; fires `success` or `failure` to GameForge |
 | `GET /api/keys` | SSE stream of Pi keyboard events → phone browser (terminal-specific) |
 
-Password priority: 1) Override code sent by GameForge on `/enable`, 2) `config.json`, 3) hardcoded fallback `DEFAULT_PASSWORD`.
+Password priority: 1) Override code sent by GameForge on `/enable`, 2) app's own config, 3) hardcoded fallback.
 
 ---
 

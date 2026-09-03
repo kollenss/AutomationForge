@@ -186,9 +186,20 @@ export default function NodeModal({ node, library, scenes, onChange, onClose, on
                     value={node.data.params?.[p.key] ?? p.default}
                     min={p.min != null ? p.min : undefined}
                     max={p.max != null ? p.max : undefined}
-                    onChange={e => onChange(node.id, p.key,
-                      p.type === 'number' || p.type === 'pin' ? Number(e.target.value) : e.target.value
-                    )}
+                    onChange={e => {
+                      if (p.type === 'number' || p.type === 'pin') {
+                        // Allow the field to sit empty mid-edit instead of snapping to 0,
+                        // which was stealing focus/keystrokes and forcing users to the spinner arrows.
+                        onChange(node.id, p.key, e.target.value === '' ? '' : Number(e.target.value))
+                      } else {
+                        onChange(node.id, p.key, e.target.value)
+                      }
+                    }}
+                    onBlur={e => {
+                      if ((p.type === 'number' || p.type === 'pin') && e.target.value === '') {
+                        onChange(node.id, p.key, Number(p.default) || 0)
+                      }
+                    }}
                   />
                 )}
                 {p.type === 'pin' && (

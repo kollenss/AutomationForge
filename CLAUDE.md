@@ -45,9 +45,13 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 **SSH MCP (→ ninja) — run scripts, build frontend, tail logs, restart services, debug.** Never edit files over SSH.
 
-**`C:\Dev\GameForge` is a separate local clone — SD-card-failure backup only, never edit directly.** `Z:\` is the live copy actually running on the Pi and is the only place changes should be made and committed/pushed from. After pushing from `Z:\`, sync the backup clone with a plain `git pull` (discard any local diff there first — it should never carry independent edits). Two independently-edited working copies is how the WS2812B pulse fix briefly diverged (2026-08-29) before this rule was written down.
+**`Z:\` is the only working copy — GitHub (`kollenss/AutomationForge`) is the backup.** There is no local clone on the Windows machine; a `C:\Dev\GameForge` backup clone used to exist but was removed 2026-08-31 (it had drifted from `origin/main` and was never synced — see `C:\Dev\MIGRATION_STATUS.md`). Make and commit/push all changes from `Z:\` only.
 
 **The systemd service is `propforge`**, not `gameforge`. GameForge is the product's working title.
+
+### Backup — `management/data/` is gitignored
+
+`management/data/` (project JSON — the actual node-graph designs built in the canvas, plus `settings.json`) is intentionally excluded from git and only exists on the Pi's SD card. **Use the Projects page's Export button** (downloads `gameforge-projects-<date>.json`, all projects in one file — Import restores them) to back it up periodically, and save the exported file **off the Pi** (Windows machine, cloud drive) — exporting to `Z:\` alone doesn't help if the SD card itself dies.
 
 ### MCP Tools – Best Fit
 
@@ -69,55 +73,49 @@ This is a physical puzzle box built inside an aluminum briefcase. The player sol
 
 ### Modular Architecture
 
-All hardware/sensors are implemented as shared modules with GPIO pin as parameter. Floor scripts import from `shared/`. Never hardcode pins inside modules.
+> **Superseded (kept for history):** earlier drafts of this file described each floor as a standalone script (`floor1_plan/floor1.py`, `floor2_terminal/terminal_tty.py`, `floor3_vault/vault.py`) importing shared hardware helpers from `shared/`. None of that exists on the Pi anymore — verified 2026-09-03. The project moved to the **GameForge node-graph engine** instead: hardware is exposed as modules, game logic per component type lives in one file, and each floor is a *scene* (a graph of connected component nodes) built in the canvas UI, not a bespoke Python script. The combo-lock mechanic described further down (debounce constants, grace-period, direction-confirm) was ported into `_exec_combo_lock` in `engine.py` — the tuning knowledge is still valid, the file it lived in is not.
+
+Hardware modules take the GPIO pin as a parameter and never hardcode it. Never edit hardcoded pins into a module — read them from `PIN_MAP.md`/component params instead.
 
 ```
-shared/komponent.py      ← hardware module (pin as parameter)
-shared/test_komponent.py ← isolated test, no other hardware needed
-floor1_plan/floor1.py    ← imports from shared/
-floor2_terminal/...      ← imports from shared/
-floor3_vault/vault.py    ← imports from shared/
+modules/<name>/<name>.py     ← hardware module: get_components() + Device class (pin as param)
+management/component_library.json ← Logic-only component defs (Timer, Password Lock, ...)
+management/engine.py         ← game logic per component type — one _exec_<type>() per type
+management/data/projects/    ← the actual per-project node graphs (Floor 1/2/3 wiring) — see Backup below
 ```
 
-### File Structure on Pi (`/home/pi/`)
+### File Structure (`/home/pi/AutomationForge/` = `Z:\`)
 
 ```
-/home/pi/
-├── floor1_plan/          ← TODO: floor1.py (not written yet)
-├── floor2_terminal/
-│   ├── terminal_tty.py   ← ACTIVE: curses UI, reads keyboard on Pi directly
-│   ├── terminal_web.py   ← Flask app (port 8080) serving phone display
-│   └── terminal.html     ← Phone browser UI (served by terminal_web.py)
-├── floor3_vault/
-│   └── vault.py          ← Pi implementation (needs audio.py integration + hardware test)
-├── shared/
-│   ├── relay_trigger.py  ← RelayBoard class (pylibftdi / BitBangDevice)
-│   ├── actuators.py      ← SolenoidController wrapping RelayBoard
-│   ├── audio.py          ← Audio module – DFPlayer Mini via FT232RL (/dev/ttyUSB0)
-│   ├── generate_sounds.py← Generates MP3 sound effects → shared/sounds/
-│   ├── test_audio.py     ← Isolated audio test
-│   ├── sounds/           ← Generated MP3s (0001–0005) – copy to DFPlayer SD card
-│   ├── config.json       ← Game config: password
-│   └── state.json        ← Runtime state (floor2 state, relay states, audio events)
+Z:\
+├── modules/              ← hardware wrappers, one folder per component type
+│   ├── rfid/rfid.py             ← RC522 reader(s), SPI polling
+│   ├── relay_trigger/relay_trigger.py  ← Denkovi relay board (pylibftdi)
+│   ├── rotary_encoder/          ← KY-040 via pigpio
+│   ├── servo/, max7219_display/, dfplayer/, ws2812b/, usb_device_detector/, text_input/
+│   ├── hardware_service.py      ← Flask REST API (port 5101), owns all hardware
+│   └── generate_sounds.py       ← deterministic sine-wave SFX generator
 ├── management/
 │   ├── app.py            ← GameForge REST API (port 5000)
-│   ├── component_library.json  ← Komponentdefinitioner
-│   ├── GAMEFORGE.md      ← Plattformsdokumentation (vision, arkitektur, backlog)
-│   ├── data/projects/    ← Projekt-JSON-filer
-│   ├── static/           ← Byggd React-app (serveras av Flask)
-│   └── frontend/         ← React + Vite källkod
-└── audio/                ← Cardinal's voice MP3s (not recorded yet)
+│   ├── engine.py          ← game logic per component type (_exec_<type> executors)
+│   ├── component_library.json  ← Logic-component definitions
+│   ├── GAMEFORGE.md       ← Plattformsdokumentation (vision, arkitektur, backlog)
+│   ├── data/              ← Project JSON + settings.json — gitignored, see Backup below
+│   ├── static/            ← Byggd React-app (serveras av Flask)
+│   └── frontend/          ← React + Vite källkod
+├── docs/diamond-heist/    ← story bible (see Key Documents)
+└── PIN_MAP.md, install.sh, bootstrap.sh, run_local.py
 ```
+
+`floor1_plan/`, `floor2_terminal/`, `floor3_vault/`, `shared/`, `audio/` at `/home/pi/` (outside `AutomationForge/`) do **not** exist — if you're looking for old logic under those paths, it's either gone or living in `engine.py` now (see note above).
 
 ### Relay / Actuator Layer
 
 ```
-relay_trigger.py   →  RelayBoard (pylibftdi, BitBangDevice 'DAE000iW')
-                       CHANNEL_BITS: {1:0x02, 2:0x08, 3:0x20, 4:0x80}
-actuators.py       →  SolenoidController(board, {'name': channel})
-                       .trigger(name)   – open and stay open
-                       .release(name)   – close
-                       .pulse(name, s)  – open for s seconds then close
+modules/relay_trigger/relay_trigger.py  →  RelayBoard (pylibftdi, BitBangDevice 'DAE000iW')
+                                            CHANNEL_BITS: {1:0x02, 2:0x08, 3:0x20, 4:0x80}
+management/engine.py  _exec_relay        →  POSTs on/off to hardware-service per channel;
+                                            optional auto_off_s param auto-turns-off after N seconds
 ```
 
 **Floor 2 uses channel 1** (`floor2_panel`). Floor 1 and Floor 3 will also use this layer.
@@ -146,27 +144,29 @@ actuators.py       →  SolenoidController(board, {'name': channel})
 
 ## Three Floors
 
+Game flow/story below is still accurate; the `[...]` implementation tags name the current GameForge node types (see `management/engine.py`), not standalone scripts.
+
 ```
-FLOOR 1 – The Plan  [Pi GPIO/SPI]
+FLOOR 1 – The Plan  [rfid_reader + rfid_auth nodes, Pi SPI]
   4× RC522 readers on Pi SPI (Lobby, Security Control, Server Room, Vault room)
   Cards placed in correct order: GHOST → WRAITH → CIRCUIT → SPECTRE
   WhatsApp verification with Cardinal (code OP-0987)
   Red LED camera turns off (Pi GPIO)
   Solenoid releases panel → access to Floor 2
 
-FLOOR 2 – The Terminal  [terminal_tty.py + terminal_web.py, port 8080]
+FLOOR 2 – The Terminal  [terminal_gate node — "Web App Bridge", port 8080]
   Player finds screwdriver, unscrews USB port cover on Pi
-  Inserts YubiKey into Pi USB → terminal activates (lsusb count increases)
-  terminal_tty.py runs on Pi: curses UI, keyboard on Pi, arrow key navigation
-  terminal_web.py serves terminal.html to Redmi 9A over WiFi (display only, touch disabled)
+  Inserts YubiKey into Pi USB → terminal activates (usb_device_detector node, lsusb count)
+  Phone/terminal UI talks to GameForge over the Web App Bridge HTTP contract
+  (enable/disable/validate — see management/CLAUDE.md); the app implementing that
+  contract for this floor still needs to be (re)written, see Next Step
   Navigate: ALARM CONTROL → Vault Corridor → enter override code
-  Code stored in /home/pi/shared/config.json
-  Solenoid channel 1 via actuators.py → Denkovi relay → release panel → Floor 3
+  Solenoid channel 1 via relay_channel node → Denkovi relay → release panel → Floor 3
 
-FLOOR 3 – The Vault  [vault.py, pigpio]
-  Place SPECTRE card on RC522 → audio confirmation via speaker
+FLOOR 3 – The Vault  [combo_lock node in engine.py, ky040_encoder, pigpio]
+  Place SPECTRE card on RC522 → audio confirmation via speaker (dfplayer node)
   Crack combination with stethoscope: R27 L14 R9
-  Each correct position → click sound via audio.py (DFPlayer track 1)
+  Each correct position → click sound (DFPlayer track 1)
   Combination digits hidden on back of character cards (Ghost SN-27, Wraith SN-14, Circuit SN-9)
   Plexi cover opens (4× SG90 servos via pigpio) → NeoPixel ring illuminates → take Le Cœur Bleu
 ```
@@ -174,6 +174,8 @@ FLOOR 3 – The Vault  [vault.py, pigpio]
 ---
 
 ## Current Progress
+
+> Entries below mentioning `shared/`, `floor2_terminal/`, `floor3_vault/` describe work done in the old per-floor-script architecture (see the superseded note under Architecture). None of those files exist anymore; where the logic survived, it was ported into `management/engine.py`. Kept here for the debugging history (e.g. the encoder debounce tuning) — don't go looking for the files.
 
 - ✅ Story bible complete
 - ✅ All character designs defined
@@ -243,7 +245,7 @@ FLOOR 3 – The Vault  [vault.py, pigpio]
 
 ## Floor 3 – Kombinationslåset: Aktuell status & felsökning
 
-### Mekanik (test_combo.py och vault.py – samma logik)
+### Mekanik (numera `_exec_combo_lock` i `management/engine.py`, samma logik som test_combo.py/vault.py hade)
 - Räknaren ökar +1 per encoder-hack i aktiv riktning
 - Vid rätt tal → click-ljud, `click_time = time.time()` sätts
 - 250 ms grace-period: alla hack i samma riktning ignoreras direkt efter klick
@@ -258,15 +260,15 @@ KY-040 genererade burst av 2–3 snabba hack vid detentposition.
 
 ## Next Step
 
-Kombinationslåsmekaniken är klar och testad (23/33/26/74 — alla korrekta lås). Nästa fas: koppla hårdvara och kör vault.py.
+Kombinationslåsmekaniken är klar och testad (23/33/26/74 — alla korrekta lås) — nu som `combo_lock`-noden i GameForge-motorn. Nästa fas: koppla hårdvara och testa Floor 3 end-to-end via en scen i canvasen.
 
 > Alla pinnar: se `PIN_MAP.md`.
 
-1. **Koppla RC522 RFID** — SPECTRE-kort-detektion
-   - Om shared/test_rfid.py saknas: skriv det
-2. **Koppla servos** — öppnar plexi-lock
-3. **Koppla NeoPixel-ring (WS2812B)** — belyser diamanten
-4. **Kör vault.py end-to-end** med all hårdvara anslutet
+1. **Koppla RC522 RFID** — SPECTRE-kort-detektion (`rfid_reader`-nod)
+2. **Koppla servos** — öppnar plexi-lock (`servo`-nod)
+3. **Koppla NeoPixel-ring (WS2812B)** — belyser diamanten (`led_zone`-nod)
+4. **Bygg Floor 3-scenen i canvasen** och kör den end-to-end med all hårdvara ansluten
+5. **Floor 2 Web App Bridge** — `terminal_gate`-noden finns i engine.py, men själva telefon-/terminal-appen (`terminal_web.py`, Web App Bridge-kontraktet i `management/CLAUDE.md`) behöver skrivas om — den gamla filen finns inte kvar på Pi:n
 
 ---
 

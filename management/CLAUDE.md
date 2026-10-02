@@ -144,6 +144,7 @@ Signal flow-visualisering (Debug mode):
 | `checklist`     | `_exec_checklist`     | ✅ implementerad (step_1–step_6 i ordning → complete / out_of_order) |
 | `if_else`       | `_exec_if_else`       | ✅ implementerad (grindar nedströms noder tills villkoret uppfylls) |
 | `console_log`   | `_exec_console_log`   | ✅ implementerad (skriver rad till Signal Log via `console_log`-event) |
+| `display_router` | `_exec_display_router` | ✅ implementerad ("Browser Display" — POSTar `{url}` till `display_router/app.py` (port 8090), som styr vad kiosk-skärmen på ninja visar) |
 | `password_lock` | saknas | ⏳ finns i library, ej i engine |
 
 ### Executor-signatur

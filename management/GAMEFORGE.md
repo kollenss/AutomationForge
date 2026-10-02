@@ -318,7 +318,7 @@ Vad som redan är implementerat (executors, live-status, simulering) står i `ma
 
 **Kvarstående:**
 - **`password_lock`-executor saknas** — komponenten finns definierad i `component_library.json` men har ingen `_exec_password_lock` i `engine.py` än.
-- **Floor 2 Web App Bridge-appen behöver (åter)skrivas** — `terminal_gate`-noden och HTTP-kontraktet finns (se sektionen nedan), men själva telefon-/terminalappen finns inte på Pi:n just nu. Se `Z:\CLAUDE.md` → Next Step.
+- **Floor 2 terminal-pusslets faktiska UI behöver skrivas** — `terminal_gate`-noden och HTTP-kontraktet finns (se sektionen nedan), och sedan 2026-10-02 finns även hela kiosk-kedjan (fysisk HDMI-skärm på ninja → `cage`+`chromium` → `display_router` floor app, port 8090, styrbar från canvasen via "Browser Display"-noden — verifierad end-to-end). Det som saknas nu är bara själva pusselappen (`floor2_terminal/terminal_web.py`): lösenordsflödet, "ALARM CONTROL"-menyn, GTA-estetiken. Se `Z:\CLAUDE.md` → Next Step.
 - **Komponentbibliotek: disconnected-indikator** — visa om en hårdvarumodul inte är ansluten.
 - **Döp om `management/` → `gameforge/`** — namnet är missvisande (låter som ett admin-/rapportpanel-namn, men mappen ÄR hela plattformen: engine + REST API + canvas-editor). Inte en enkel `git mv`: `propforge`-tjänstens working directory/paths, Samba-sökvägen på ninja, `.gitignore`, build-skript och alla docs (`Z:\CLAUDE.md`, det här dokumentet) refererar till `management/` och behöver uppdateras samtidigt.
 

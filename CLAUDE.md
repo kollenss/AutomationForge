@@ -157,9 +157,10 @@ FLOOR 1 – The Plan  [rfid_reader + rfid_auth nodes, Pi SPI]
 FLOOR 2 – The Terminal  [terminal_gate node — "Web App Bridge", port 8080]
   Player finds screwdriver, unscrews USB port cover on Pi
   Inserts YubiKey into Pi USB → terminal activates (usb_device_detector node, lsusb count)
-  Phone/terminal UI talks to GameForge over the Web App Bridge HTTP contract
-  (enable/disable/validate — see management/CLAUDE.md); the app implementing that
-  contract for this floor still needs to be (re)written, see Next Step
+  Dedicated small HDMI screen on the Pi (phone-as-display dropped) shows a kiosk
+  browser (cage+chromium) pointed at display_router (port 8090); terminal UI talks
+  to GameForge over the Web App Bridge HTTP contract (enable/disable/validate — see
+  management/CLAUDE.md); the puzzle app itself still needs to be (re)written, see Next Step
   Navigate: ALARM CONTROL → Vault Corridor → enter override code
   Solenoid channel 1 via relay_channel node → Denkovi relay → release panel → Floor 3
 
@@ -268,7 +269,7 @@ Kombinationslåsmekaniken är klar och testad (23/33/26/74 — alla korrekta lå
 2. **Koppla servos** — öppnar plexi-lock (`servo`-nod)
 3. **Koppla NeoPixel-ring (WS2812B)** — belyser diamanten (`led_zone`-nod)
 4. **Bygg Floor 3-scenen i canvasen** och kör den end-to-end med all hårdvara ansluten
-5. **Floor 2 Web App Bridge** — `terminal_gate`-noden finns i engine.py, men själva telefon-/terminal-appen (`terminal_web.py`, Web App Bridge-kontraktet i `management/CLAUDE.md`) behöver skrivas om — den gamla filen finns inte kvar på Pi:n
+5. **Floor 2 terminal-app** — kiosk-kedjan är klar (2026-10-02): fysisk HDMI-skärm på ninja, telefon-som-display är inte aktuellt längre. `cage`+`chromium` körs i kiosk-läge mot `display_router/app.py` (port 8090), som GameForge kan styra live via "Browser Display"-noden (`_exec_display_router`) — verifierat end-to-end. Kvar: själva `floor2_terminal/terminal_web.py`-pusselappen (lösenord, meny, GTA-estetik) som `terminal_gate`-noden ska peka på; Web App Bridge-kontraktet finns redan i `management/GAMEFORGE.md`
 
 ---
 

@@ -110,6 +110,21 @@
           ]
         },
         {
+          "type": "display_router",
+          "label": "Browser Display",
+          "subtitle": "Kiosk screen",
+          "color": "#0ea5e9",
+          "icon": "🖥",
+          "params": [
+            {"key": "url", "label": "Router URL", "type": "text", "default": "http://localhost:8090",
+             "description": "Base URL of the display_router floor app driving the physical screen. E.g. http://localhost:8090."}
+          ],
+          "inputs": [
+            {"key": "show", "label": "Show URL", "description": "The incoming value is the URL to display on the physical screen"}
+          ],
+          "outputs": []
+        },
+        {
           "type": "on_scene_start",
           "label": "On Scene Start",
           "subtitle": "Scene event",

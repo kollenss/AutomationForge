@@ -452,6 +452,18 @@ def _exec_terminal_gate(node_id, params, handle, value, emit, propagate, get_sta
         print(f'[terminal_gate] {handle} failed: {e}')
 
 
+def _exec_display_router(node_id, params, handle, value, emit, propagate, get_state):
+    if handle != 'show':
+        return
+    url = params.get('url', 'http://localhost:8090').rstrip('/')
+    try:
+        req = _req.Request(f'{url}/show', data=json.dumps({'url': str(value)}).encode(),
+                           headers={'Content-Type': 'application/json'}, method='POST')
+        _req.urlopen(req, timeout=2)
+    except Exception as e:
+        print(f'[display_router] show failed: {e}')
+
+
 def _exec_set_value(node_id, params, handle, value, emit, propagate, get_state):
     out = params.get('value', '')
     threading.Timer(0.05, propagate, args=('out', out)).start()
@@ -753,6 +765,7 @@ _EXECUTORS = {
     'timer':         _exec_timer,
     'set_value':     _exec_set_value,
     'terminal_gate': _exec_terminal_gate,
+    'display_router': _exec_display_router,
     'checklist':     _exec_checklist,
     'led_zone':      _exec_led_zone,
     'if_else':       _exec_if_else,

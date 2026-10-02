@@ -21,7 +21,7 @@ sudo raspi-config nonint do_serial_cons 1
 # ---------------------------------------------------------------------------
 echo "==> Installing system packages..."
 sudo apt update -y
-sudo apt install -y python3-pip python3-venv python3-setuptools git unzip nodejs npm
+sudo apt install -y python3-pip python3-venv python3-setuptools git unzip nodejs npm cage chromium
 
 # ---------------------------------------------------------------------------
 # 2. pigpio (not in Bookworm apt repos — build from source)
@@ -134,19 +134,49 @@ WantedBy=multi-user.target
 EOF
 
 # ---------------------------------------------------------------------------
-# 8. udev rule for FTDI relay board
+# 8. systemd unit: display-router (the kiosk screen's modular URL switcher)
+# ---------------------------------------------------------------------------
+echo "==> Creating display-router.service..."
+sudo tee /etc/systemd/system/display-router.service > /dev/null << EOF
+[Unit]
+Description=GameForge Display Router (kiosk screen URL switcher)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 $REPO_DIR/display_router/app.py
+WorkingDirectory=$REPO_DIR/display_router
+Restart=always
+RestartSec=3
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# ---------------------------------------------------------------------------
+# 9. Kiosk display: console autologin + cage/chromium autostart
+# ---------------------------------------------------------------------------
+echo "==> Enabling console autologin and kiosk autostart..."
+sudo raspi-config nonint do_boot_behaviour B2
+KIOSK_SNIPPET='[ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ] && exec cage -- chromium --kiosk --noerrdialogs --disable-infobars --no-first-run http://localhost:8090/'
+if ! grep -qF "$KIOSK_SNIPPET" "$HOME_DIR/.bash_profile" 2>/dev/null; then
+    echo "$KIOSK_SNIPPET" >> "$HOME_DIR/.bash_profile"
+fi
+
+# ---------------------------------------------------------------------------
+# 10. udev rule for FTDI relay board
 # ---------------------------------------------------------------------------
 echo "==> Adding udev rule for FTDI relay board..."
 echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0403", MODE="0666"' | sudo tee /etc/udev/rules.d/99-ftdi.rules > /dev/null
 sudo udevadm control --reload-rules && sudo udevadm trigger
 
 # ---------------------------------------------------------------------------
-# 9. Enable and start services
+# 11. Enable and start services
 # ---------------------------------------------------------------------------
 echo "==> Enabling and starting services..."
 sudo systemctl daemon-reload
-sudo systemctl enable pigpiod hardware-service propforge
-sudo systemctl restart pigpiod hardware-service propforge
+sudo systemctl enable pigpiod hardware-service propforge display-router
+sudo systemctl restart pigpiod hardware-service propforge display-router
 
 # ---------------------------------------------------------------------------
 # Done
@@ -155,4 +185,4 @@ echo ""
 echo "==> Install complete!"
 echo "    UI: http://$(hostname -I | awk '{print $1}'):5000"
 echo ""
-sudo systemctl status pigpiod hardware-service propforge --no-pager
+sudo systemctl status pigpiod hardware-service propforge display-router --no-pager

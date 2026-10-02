@@ -24,7 +24,7 @@ _PAGE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <title>GameForge Display</title>
 <style>
-  html, body {{ margin: 0; padding: 0; background: #000; overflow: hidden; height: 100%; }}
+  html, body {{ margin: 0; padding: 0; background: #000; overflow: hidden; height: 100%; cursor: none; }}
   iframe {{ border: 0; width: 100vw; height: 100vh; display: block; }}
 </style>
 </head>

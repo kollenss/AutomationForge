@@ -158,10 +158,14 @@ EOF
 # ---------------------------------------------------------------------------
 echo "==> Enabling console autologin and kiosk autostart..."
 sudo raspi-config nonint do_boot_behaviour B2
+python3 "$REPO_DIR/display_router/blank_cursor.py"
+CURSOR_SNIPPET='export XCURSOR_THEME=blank XCURSOR_PATH=$HOME/.icons'
 KIOSK_SNIPPET='[ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ] && exec cage -- chromium --kiosk --noerrdialogs --disable-infobars --no-first-run http://localhost:8090/'
-if ! grep -qF "$KIOSK_SNIPPET" "$HOME_DIR/.bash_profile" 2>/dev/null; then
-    echo "$KIOSK_SNIPPET" >> "$HOME_DIR/.bash_profile"
-fi
+for SNIPPET in "$CURSOR_SNIPPET" "$KIOSK_SNIPPET"; do
+    if ! grep -qF "$SNIPPET" "$HOME_DIR/.bash_profile" 2>/dev/null; then
+        echo "$SNIPPET" >> "$HOME_DIR/.bash_profile"
+    fi
+done
 
 # ---------------------------------------------------------------------------
 # 10. udev rule for FTDI relay board

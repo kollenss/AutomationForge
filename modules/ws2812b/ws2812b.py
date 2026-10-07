@@ -13,14 +13,10 @@ Wiring:
     GND ────────── — GND
     DOUT of last LED is not connected (end of chain)
 
-Zone layout (Diamond Heist default, 1-based as written on the card):
-    LEDs 1–3   → Floor 1  (3 LEDs)
-    LEDs 4–6   → Floor 2  (3 LEDs)
-    LEDs 7–10  → Floor 3  (4 LEDs — diamond illumination)
-
-To adapt for a different project:
-    - Change MANIFEST['led_count'] and MANIFEST['gpio_pin'] if needed.
-    - Redefine zones on the GameForge canvas — no code change required.
+LED count is dynamic: the driver addresses up to MANIFEST['led_count'] (64)
+pixels, so adding a physical LED to the end of the chain needs no code or
+config change — just reference its 1-based number on an LED Zone card.
+Zones are defined per card on the GameForge canvas, not in code.
 """
 
 import threading
@@ -36,7 +32,12 @@ except ImportError:
 MANIFEST = {
     'type':      'ws2812b',
     'label':     'WS2812B LED Strip',
-    'led_count': 2,    # TILLFÄLLIGT: bara 2 LED inkopplade just nu (full build = 10)
+    # Antal pixlar drivrutinen skickar = högsta adresserbara LED, INTE antalet
+    # fysiskt inkopplade. Extra pixlar bortom kedjans slut är ofarliga (datan
+    # faller bara av), men en fysisk LED bortom led_count får aldrig data och kan
+    # lysa slumpmässigt. Därför ett generöst tak: lägg bara till LED:n i kedjan
+    # och adressera den på kortet (t.ex. "4") — ingen kodändring.
+    'led_count': 64,
     'gpio_pin':  21,
 }
 
@@ -100,7 +101,7 @@ def _parse_leds(spec, led_count):
         "1-2"  → [0, 1]
         "1,3"  → [0, 2]
         "1-3,5"→ [0, 1, 2, 4]
-    Indices outside the strip (1..led_count) are silently dropped.
+    Indices outside 1..led_count (the driver's pixel ceiling, 64) are silently dropped.
     """
     out = set()
     for part in str(spec).replace(' ', '').split(','):

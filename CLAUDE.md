@@ -131,7 +131,7 @@ management/engine.py  _exec_relay        →  POSTs on/off to hardware-service p
 | Mifare Classic cards x5 | Character cards (GHOST, WRAITH, CIRCUIT, SPECTRE + NOVA ID) |
 | KY-040 Rotary encoder x3 | Safe combination dial (Floor 3) |
 | SG90 servo x4 | Opens plexi cover over diamond (Floor 3) |
-| WS2812B LED strip 10-LED | Addressable LEDs: index 0–2 Floor 1, 3–5 Floor 2, 6–9 Floor 3 (diamond illumination) |
+| WS2812B LED strip (3 LEDs now) | Addressable LEDs, count is dynamic: the driver addresses up to 64 pixels, so a new LED added to the chain is addressable from an LED Zone card by its 1-based number with no code change. Zones are defined on the canvas, not in code |
 | Micro solenoid K055 x3 | Release floor panels |
 | Denkovi USB relay board | Pi solenoid control – pylibftdi, CHANNEL_BITS {1:0x02, 2:0x08, 3:0x20, 4:0x80} |
 | Redmi 9A phone | Floor 2 display only – connects to terminal_web.py over WiFi (no touch, no keyboard) |

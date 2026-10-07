@@ -31,7 +31,7 @@
 |---|---|---|---|---|
 | GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 #1 — K5→P14 ✅ TESTAD | V3 |
 | GPIO13 | Pin 33 | PWM1 (HW) | Servo SG90 #2 — N5→Q13 ✅ TESTAD | V3 |
-| GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip, 10 LED (index 0–2: V1, 3–5: V2, 6–9: V3) | V1+V2+V3 |
+| GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip (3 LED nu; antalet är dynamiskt, drivrutinen adresserar upp till 64 — zoner definieras på canvasen) | V1+V2+V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
 
 ---
@@ -80,7 +80,7 @@ Pin 36 GPIO16 Generell          PLANERAD       RC522 CS — Serverrum/Circuit (V
 Pin 37 GPIO26 Generell          PLANERAD       RC522 RST delad — alla V1-läsare
 Pin 38 GPIO20 SPI1 MOSI         LEDIG
 Pin 39 GND    Jord              LEDIG
-Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       WS2812B strip 10 LED — rpi_ws281x PCM-DMA (V1+V2+V3)
+Pin 40 GPIO21 SPI1 SCLK/PCM     PLANERAD       WS2812B strip (3 LED nu, dynamiskt antal) — rpi_ws281x PCM-DMA (V1+V2+V3)
 ```
 
 ---

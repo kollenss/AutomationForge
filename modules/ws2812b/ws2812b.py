@@ -299,6 +299,19 @@ class Device:
         self._set_zone(leds, rgb, brightness)
         return {'ok': True}
 
+    def refresh(self, params):
+        """Re-send the current frame unchanged.
+
+        The LEDs lose their colour if their supply dips for a moment (e.g. a
+        solenoid firing on the same rail); the buffer in the Pi is untouched,
+        so sending it again restores the strip. Running animations simply
+        overwrite the next frame.
+        """
+        if self._strip:
+            with self._write_lock:
+                self._strip.show()
+        return {'ok': True}
+
     def off(self, params):
         """Turn off all LEDs in the zone."""
         leds, key, _, _ = self._extract(params)

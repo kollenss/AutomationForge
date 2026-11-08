@@ -82,6 +82,15 @@ def _exec_relay(node_id, params, handle, value, emit, propagate, get_state):
     if emit and isinstance(resp.get('state'), dict):
         emit('relay_state', resp['state'])
 
+    if action == 'on':
+        # A load switching on the same supply can blank the LED strip for a
+        # moment; re-send its frame a few times once the transient is over.
+        # (RFID readers recover on their own via the health check in rfid.py.)
+        for delay in (0.4, 1.0, 2.0):
+            t = threading.Timer(delay, _hw_post, args=('/hardware/ws2812b/refresh', {}))
+            t.daemon = True
+            t.start()
+
     auto_off_s = float(params.get('auto_off_s', 0) or 0)
     if action == 'on' and auto_off_s > 0:
         def _auto_off():

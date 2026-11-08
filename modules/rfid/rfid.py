@@ -35,6 +35,14 @@ MANIFEST = {
 
 _POLL_INTERVAL = 0.1   # seconds between full scan cycles
 
+# An RC522 that loses power for a moment (e.g. a supply dip when a solenoid
+# fires) silently falls back to its reset defaults and stops reading cards,
+# and nothing re-initialises it. _init_reader writes _REG_TMODE_INIT to the
+# timer-mode register, so any other value means the chip has been reset.
+_HEALTH_INTERVAL   = 1.0    # seconds between register checks
+_REG_TMODE         = 0x2A
+_REG_TMODE_INIT    = 0x8D
+
 # ── RC522 register constants ───────────────────────────────────────────────────
 _REG_COMMAND     = 0x01
 _REG_COM_I_EN    = 0x02
@@ -194,6 +202,7 @@ class Device:
         self._callback = None
         self._last = {}
         self._readers = []
+        self._healthy_ids = set()   # readers that answered at start-up
         self._spi = None
 
         if not _HW_AVAILABLE:
@@ -221,6 +230,8 @@ class Device:
                     _init_reader(spi, r['ce_gpio'], r['rst_gpio'])
                     ver = _read_reg(spi, r['ce_gpio'], _REG_VERSION)
                     self._readers.append(r)
+                    if ver not in (0x00, 0xFF):
+                        self._healthy_ids.add(r['id'])
                     print(f"[rfid] reader {r['id']} ({r['label']}) ready — "
                           f"CE GPIO{r['ce_gpio']}, RST GPIO{r['rst_gpio']}, version=0x{ver:02X}")
                 except Exception as e:
@@ -245,8 +256,39 @@ class Device:
         # for as long as the card is present. Require a few consecutive
         # misses before treating the card as gone.
         _MISS_THRESHOLD = 3  # ~300ms of consecutive failed polls
+        last_health = 0.0
+        last_log = {}
 
         while True:
+            now = time.time()
+            if now - last_health >= _HEALTH_INTERVAL:
+                last_health = now
+                for r in self._readers:
+                    rid = r['id']
+                    try:
+                        if rid not in self._healthy_ids:
+                            # Not answering (not wired, or unpowered) — one cheap read
+                            # per cycle; set it up as soon as it shows up.
+                            ver = _read_reg(spi, r['ce_gpio'], _REG_VERSION)
+                            if ver in (0x00, 0xFF):
+                                continue
+                            _init_reader(spi, r['ce_gpio'], r['rst_gpio'])
+                            self._healthy_ids.add(rid)
+                            print(f"[rfid] reader {rid} ({r['label']}) came online — version=0x{ver:02X}")
+                            continue
+                        if _read_reg(spi, r['ce_gpio'], _REG_TMODE) == _REG_TMODE_INIT:
+                            continue
+                        # Keep prev_uids: a card still lying on the reader must NOT
+                        # re-fire after the re-init, or a card that triggers a
+                        # solenoid would re-trigger it with every supply dip.
+                        _init_reader(spi, r['ce_gpio'], r['rst_gpio'])
+                        # Rate-limit the log: a reader that stays dead retries every second.
+                        if now - last_log.get(rid, 0.0) >= 10.0:
+                            last_log[rid] = now
+                            print(f"[rfid] reader {rid} ({r['label']}) lost its configuration — re-initialised")
+                    except Exception as e:
+                        print(f"[rfid] reader {rid} ({r['label']}) health check failed: {e}")
+
             for r in self._readers:
                 rid = r['id']
                 cs  = r['ce_gpio']

@@ -29,7 +29,7 @@
 
 | GPIO (BCM) | Board Pin | Signal | Komponent | Våning |
 |---|---|---|---|---|
-| GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 #1 — K5→P14 ✅ TESTAD | V3 |
+| GPIO12 | Pin 32 | PWM0 (HW) | Servo SG90 #1 — golvlås Våning 1 (inkopplad, bekräftad 2026-11-08) | V1 |
 | GPIO13 | Pin 33 | PWM1 (HW) | Servo SG90 #2 — N5→Q13 ✅ TESTAD | V3 |
 | GPIO21 | Pin 40 | PCM/DMA | WS2812B LED strip (3 LED nu; antalet är dynamiskt, drivrutinen adresserar upp till 64 — zoner definieras på canvasen) | V1+V2+V3 |
 | GPIO23 | Pin 16 | Digital OUT | Piezo buzzer | V3 |
@@ -72,7 +72,7 @@ Pin 28 GPIO1  ID_SC (EEPROM)    RESERVERAD     ⚠ Använd ej — HAT EEPROM
 Pin 29 GPIO5  Generell          PLANERAD       RC522 CS — Lobby/Ghost (V1)
 Pin 30 GND    Jord              LEDIG
 Pin 31 GPIO6  Generell          PLANERAD       RC522 CS — Säkerhetscentral/Wraith (V1)
-Pin 32 GPIO12 PWM0 (HW)         PLANERAD       Servo SG90 — pigpio HW PWM (V3)
+Pin 32 GPIO12 PWM0 (HW)         I BRUK         Servo SG90 — golvlås V1, pigpio HW PWM (Våning 3 får GPIO13)
 Pin 33 GPIO13 PWM1 (HW)         LEDIG          ⟵ Backup servo / andra servo
 Pin 34 GND    Jord              LEDIG
 Pin 35 GPIO19 PWM1 alt          LEDIG
